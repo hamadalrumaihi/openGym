@@ -2,6 +2,6 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "installCommand": "npm ci --no-audit --no-fund",
-  "buildCommand": "npm run build && node ../scripts/catalogue/stage-media.mjs dist && node ../scripts/vercel/output.mjs dist",
+  "buildCommand": "npm run build && node ../scripts/catalogue/stage-media.mjs dist && API_ORIGIN=\"${API_ORIGIN:-https://api-production-1ff2.up.railway.app}\" node ../scripts/vercel/output.mjs dist",
   "outputDirectory": "dist"
 }

@@ -13,7 +13,8 @@
 // Why the Build Output API and not a vercel.json rewrite: the API's address is per deployment
 // (a Railway domain), and a vercel.json is read before the build, so it could only carry that
 // address hard-coded in the repository. Here it comes from the API_ORIGIN environment variable
-// of the Vercel project, and the repository names no host at all.
+// of the Vercel project. frontend/vercel.json's build command supplies the Railway origin this
+// fork runs on when the project has no API_ORIGIN; a project variable always wins over it.
 //
 // /api/* is proxied to API_ORIGIN by Vercel, so the browser only ever talks to one origin: the
 // session cookie stays first-party and host-only, and the passkey RP ID is the public hostname.

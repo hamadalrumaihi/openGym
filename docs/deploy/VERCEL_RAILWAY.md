@@ -65,6 +65,10 @@ Project `cid` (prj_jCH56lKXHShTJv9IArloAk3GRZdx), team hamadalrumaihis-projects.
    root directory into serverless functions, and the repository's `api/` is the Railway server.
 3. Settings → Environment Variables: `API_ORIGIN` = the Railway origin from step 5 above, for
    Production and Preview. Remove the CID portal's variables after recording them (below).
+   The build command in `frontend/vercel.json` falls back to this fork's Railway origin when
+   the variable is missing, because the Vercel connector used for the cutover could not write
+   project variables. A project variable always takes precedence; set one before pointing the
+   project at a different API, or change the fallback.
 4. Redeploy `main`.
 
 What the build does (`frontend/vercel.json`): installs and builds `frontend/`, copies the
