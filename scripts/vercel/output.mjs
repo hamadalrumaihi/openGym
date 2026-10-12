@@ -80,7 +80,7 @@ const routes = [
     ? { src: '^/api/(.*)$', dest: API + '/api/$1' }
     : { src: '^/api/(.*)$', dest: '/_api-unavailable.json', status: 503, headers: { 'Cache-Control': 'no-store' } },
   // The CID portal's web-app manifest lived here; a browser that kept it gets openGym's.
-  { src: '^/manifest\\.webmanifest$', dest: '/manifest.json' },
+  { src: '^/manifest\\.webmanifest$', dest: '/manifest.json', headers: { ...base, 'Cache-Control': REVALIDATE } },
   { handle: 'filesystem' },
   // The app routes by hash (#/plan), so any other path is not openGym's: an old bookmark or a
   // CID route goes to the app's front page, as the nginx config does with its 302.

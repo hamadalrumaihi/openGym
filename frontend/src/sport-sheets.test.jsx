@@ -16,6 +16,8 @@ import { buildSportPlan } from './lib/sport-plans.js'
 import { queueOf } from './lib/queue.js'
 import { matSessionsOf, readinessOf, sportOf, weekModeOf } from './lib/sport.js'
 import { todayISO } from './lib/format.js'
+import { effectiveRoutineIds } from './lib/history.js'
+import { EXIDX } from './lib/exercises.js'
 
 const mounted = []
 const S = () => useStore.getState().S
@@ -220,10 +222,37 @@ describe('the Home card', () => {
     expect(text).toMatch(/short: about \d+ min/)
     expect(text).toContain('barbell')
     expect(text).toContain('barbell full squat')
+    // Named as everywhere else (a capitalising class), not left lowercase on the card alone.
+    expect([...host.querySelectorAll('.capitalize')].some(el => el.textContent === 'barbell full squat')).toBe(true)
     expect(button(host, 'Shorter session')).toBeTruthy()
     expect(text).toContain('Unlogged is unknown, not zero.')
     expect(text).toContain('from logged lifts only, not the mat')
     click(button(host, 'Shorter session'))
     expect(S().active.entries.every(e => !S().routines.find(r => r.name === 'BJJ A').ex.find(x => x.id === e.id)?.optional)).toBe(true)
+  })
+
+  it('starts the one session it shows, even when a fixed day adds a second routine today', () => {
+    // The loop's next session plus a routine on today's weekday: Home's today row combines the
+    // two, but the card names, times and equips only the first, so Start must open that one.
+    useStore.getState().update(s => { s.sport = { kind: 'bjj', gi: 'gi', lifting: 'regular' } })
+    loadSportPlan(buildSportPlan({ kind: 'bjj', gi: 'gi', lifting: 'regular', size: 'ab' }))
+    const wd = new Date(todayISO() + 'T12:00:00').getDay()
+    const loopIds = new Set(S().routines.flatMap(r => r.ex.map(x => x.id)))
+    const other = Object.keys(EXIDX).find(id => !loopIds.has(id))
+    useStore.getState().update(s => {
+      s.routines.push({ id: 'extra', name: 'Extra day', emoji: 'star', ex: [{ id: other, sets: 3, reps: 10, weight: 10 }] })
+      s.week = { [wd]: ['extra'] }
+    })
+    const today = effectiveRoutineIds(S(), todayISO())
+    expect(today).toContain('extra')
+    expect(today.length).toBe(2)
+    const shown = S().routines.find(r => r.id === today[0])
+    const host = mount(<MemoryRouter><SportCard /></MemoryRouter>)
+    expect(host.textContent).toContain(shown.name)
+    click(button(host, 'Start'))
+    const ids = new Set(shown.ex.map(x => x.id))
+    expect(S().active.entries.length).toBeGreaterThan(0)
+    expect(S().active.entries.every(e => ids.has(e.id))).toBe(true)
+    expect(S().active.entries.some(e => e.id === other)).toBe(false)
   })
 })

@@ -43,6 +43,8 @@ vi.mock('../store/useUI.js', () => {
   return { useUI }
 })
 vi.mock('react-router-dom', () => ({
+  // The redirect away from the intake is rendered, not called: record where it points.
+  Navigate: ({ to, replace }) => { mocks.redirect = { to, replace: !!replace }; return null },
   useNavigate: () => mocks.nav,
   useSearchParams: () => [new URLSearchParams(mocks.search), vi.fn()],
 }))
@@ -61,6 +63,7 @@ const fresh = () => ({
 
 beforeEach(() => {
   mocks.S = fresh()
+  mocks.redirect = null
   mocks.user = { uid: 'u1', name: 'Ana' }
   mocks.config = { coach: { enabled: true } }
   mocks.search = ''
@@ -113,14 +116,17 @@ describe('CoachIntake — who gets in', () => {
   it('sends you home and renders nothing when the Coach is not available', () => {
     mocks.config = { coach: { enabled: false } }
     mount()
-    expect(mocks.nav).toHaveBeenCalledWith('/home', { replace: true })
+    // Rendered as <Navigate>, never a nav() call during render, which the router ignores on a
+    // client-side visit and which left a blank page under the tab bar.
+    expect(mocks.redirect).toEqual({ to: '/home', replace: true })
+    expect(mocks.nav).not.toHaveBeenCalled()
     expect(host.textContent).toBe('')
   })
 
   it('needs a signed-in user as well as a server with the Coach on', () => {
     mocks.user = null
     mount()
-    expect(mocks.nav).toHaveBeenCalledWith('/home', { replace: true })
+    expect(mocks.redirect).toEqual({ to: '/home', replace: true })
   })
 })
 

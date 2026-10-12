@@ -9,7 +9,7 @@
 // `?edit=1` reuses every screen as the profile editor: consent is skipped, answers are
 // prefilled, and the last button saves instead of building.
 import { useEffect, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { useStore } from '../store/useStore.js'
 import { useUI } from '../store/useUI.js'
 import { t } from '../lib/i18n.js'
@@ -91,7 +91,9 @@ export default function CoachIntake() {
   })
   const set = patch => setP(v => ({ ...v, ...patch }))
 
-  if (!coachAvailable(config, user, { demo: DEMO, mobile: MOBILE, coachMode })) { nav('/home', { replace: true }); return null }
+  // <Navigate> rather than nav() here: navigating during render is ignored by the router on a
+  // client-side visit, which left a blank page under the tab bar with the Coach off.
+  if (!coachAvailable(config, user, { demo: DEMO, mobile: MOBILE, coachMode })) return <Navigate to="/home" replace />
 
   const key = STEPS[step]
   const last = step === STEPS.length - 1
