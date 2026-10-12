@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore.js'
-import { t, tn, useLang } from '../lib/i18n.js'
+import { t, tn, useLang, exerciseNameClass } from '../lib/i18n.js'
 import { todayISO } from '../lib/format.js'
 import { effectiveRoutineIds, nextTrainingDay } from '../lib/history.js'
 import { queueView } from '../lib/queue.js'
@@ -11,6 +11,7 @@ import { sportOf, weekModeOf, daysToCompetition, matWeekOf, readinessOf, readine
 import { SPORT_NAME, GI_NAME } from '../lib/sport-copy.js'
 import { shortRoutine, hasShortVersion } from '../lib/sport-plans.js'
 import { estimateMinutes, routineEquipment } from '../lib/routine-info.js'
+import { exOr } from '../lib/exercises.js'
 import { startFlow } from '../sheets.jsx'
 import { sportSetupSheet, sportPlanSheet, matLogSheet, readinessSheet, weekModeSheet, sessionTargets, ADVICE_WORD, reasonText } from '../sport-sheets.jsx'
 import { Button } from './ui.jsx'
@@ -64,8 +65,6 @@ export default function SportCard() {
     </div>
   }
 
-  // The next session: today's planned routine, else the loop's next, else the next planned day.
-  const ids = todayIds.length ? todayIds : nextId ? [nextId] : []
   // Today only when the today row would offer it (effectiveRoutineIds): a refilled loop that
   // starts tomorrow has a next session, but not a session for today.
   const isToday = todayIds.length > 0
@@ -77,7 +76,11 @@ export default function SportCard() {
   const mat = matWeekOf(S, today)
   const checkIn = readinessOf(S, today)
   const advice = readinessAdvice(S, today)
-  const start = short => { if (S.active) nav('/workout'); else if (ids.length) startFlow(ids, { short }) }
+  // Starts the session the card describes: its name, length, equipment, opening loads and
+  // shorter version are all this one routine's. A second routine due today (fixed days beside
+  // a loop) stays on Home's today row; starting both from here opened a far longer session
+  // than the card had just announced.
+  const start = short => { if (S.active) nav('/workout'); else if (routine) startFlow([routine.id], { short }) }
 
   return <div className="card sport-card">
     <div className="row between" style={{ marginBottom: 8 }}>
@@ -100,10 +103,10 @@ export default function SportCard() {
         </div>
       </div>
       {equipment.length > 0 && <div className="chips" style={{ flexWrap: 'wrap', margin: '6px 0 2px' }}>
-        {equipment.map(e => <span key={e} className="chip nocap" style={{ pointerEvents: 'none', fontSize: 12 }}>{t(e)}</span>)}
+        {equipment.map(e => <span key={e} className="chip" style={{ pointerEvents: 'none', fontSize: 12 }}>{t(e)}</span>)}
       </div>}
       {targets.length > 0 && <div className="small" style={{ margin: '6px 0' }}>
-        {targets.map(x => <div key={x.id} className="row between" style={{ gap: 8 }}><span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{x.name}</span><bdi dir="ltr" className="dim" style={{ whiteSpace: 'nowrap' }}>{x.line}</bdi></div>)}
+        {targets.map(x => <div key={x.id} className="row between" style={{ gap: 8 }}><span className={exerciseNameClass(exOr(x.id))} style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{x.name}</span><bdi dir="ltr" className="dim" style={{ whiteSpace: 'nowrap' }}>{x.line}</bdi></div>)}
       </div>}
       <div className="row" style={{ gap: 8, marginTop: 6 }}>
         <Button variant="primary" size="sm" icon="play" onClick={() => start(false)}>{S.active ? t('Resume') : t('Start')}</Button>
