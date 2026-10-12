@@ -23,13 +23,18 @@ import { normalizeRepRange } from './rep-range.js'
 import { isPyramid } from './pyramid.js'
 import { backoffAt } from './backoff.js'
 import { ownedWeightsFor, ownedUp, ownedDeload, ownedAround } from './dumbbells.js'
+import { matWeekOf } from './sport.js'
+import { applyWeekMode } from './week-mode.js'
 
-export const POLICIES = ['off', 'linear', 'greyskull', 'double', 'triple', 'time']
+export const POLICIES = ['off', 'linear', 'greyskull', 'double', 'triple', 'time', 'power', 'carry', 'grip']
 
-// Which policies can sensibly drive which logging mode.
+// Which policies can sensibly drive which logging mode. The last three belong to the sport
+// templates (lib/sport-plans.js) and read the exercise's category rather than its muscles: a
+// jump or a throw is never asked to add load, a carry grows in time before weight, a hang grows
+// slowly and holds after a heavy week on the mat.
 export const POLICIES_FOR = {
-  reps: ['off', 'linear', 'greyskull', 'double', 'triple'],
-  time: ['off', 'time'],
+  reps: ['off', 'linear', 'greyskull', 'double', 'triple', 'power'],
+  time: ['off', 'time', 'carry', 'grip'],
   cardio: ['off']
 }
 
@@ -39,7 +44,10 @@ export const POLICY_NAME = {
   greyskull: 'Greyskull LP',
   double: 'Double progression',
   triple: 'Triple progression',
-  time: 'Add time'
+  time: 'Add time',
+  power: 'Power: quality first',
+  carry: 'Carry: time, then load',
+  grip: 'Grip: careful time'
 }
 export const POLICY_DESC = {
   off: 'Targets stay where you set them.',
@@ -47,13 +55,21 @@ export const POLICY_DESC = {
   greyskull: 'Two straight sets plus a final set taken to failure. Beat the target on that set and the weight goes up (twice as much if you double the reps). One failure resets 10 %.',
   double: 'Work up through a rep range at the same weight. Reach the top of the range in every set and the weight goes up, reps back to the bottom.',
   triple: 'Reps climb to the top of the range, then a set is added, up to your most sets. All of them at the top and the weight goes up, back to your first sets and reps.',
-  time: 'Hold every set for the full duration and the target goes up.'
+  time: 'Hold every set for the full duration and the target goes up.',
+  power: 'The load stays put. Three clean sessions in a row add a set, up to five. A heavier load is your call, never automatic.',
+  carry: 'Carry the full time in every set and the time goes up, to its cap. Then the weight goes up and the time starts over.',
+  grip: 'A few seconds more after a clean session, up to a cap. The target holds after a heavy mat week, so your hands get a break.'
 }
 
 // The Epley target is a soft objective mapped onto the exercise's real load grid. Keep the
 // default out of saved configs so plans written before this policy stays byte-for-byte compatible.
 export const DELOAD_FACTOR = 0.9
-export const DELOAD_AFTER = { linear: 3, greyskull: 1, double: 3, triple: 3, time: 3 }
+export const DELOAD_AFTER = { linear: 3, greyskull: 1, double: 3, triple: 3, time: 3, carry: 3, grip: 3, power: 3 }
+// Where a hold or a carry stops getting longer and the next step is load or a harder variation.
+export const DEFAULT_SEC_CAP = 60
+export const DEFAULT_GRIP_INCREMENT = 5
+export const MAX_POWER_SETS = 5
+export const POWER_CLEAN_SESSIONS = 3
 export const DELOAD_FACTOR_MIN = 0.5
 export const DELOAD_FACTOR_MAX = 0.95
 
@@ -443,6 +459,12 @@ export function stallCount(sessions, policy) {
  * startsFromLast in session-start.js).
  */
 export function nextPrescription(S, cfg, routine) {
+  // A lighter or a competition week (lib/week-mode.js) is laid over whatever the policy said,
+  // and says so in its own words, so the number on the screen is still explained.
+  return applyWeekMode(S, basePrescription(S, cfg, routine), cfg)
+}
+
+function basePrescription(S, cfg, routine) {
   const mode = modeOf(cfg)
   const policy = policyFor(cfg, routine, mode)
   const unit = S.unit || 'kg'
@@ -523,8 +545,33 @@ export function nextPrescription(S, cfg, routine) {
   const deloadAt = DELOAD_AFTER[policy] || 3
 
   if (mode === 'time') {
+    const goal = last.goal || cfg.sec || 0
+    const cap = cfg.secMax > 0 ? cfg.secMax : DEFAULT_SEC_CAP
+    // A loaded carry grows in time first, then in load: at the cap the weight steps up by the
+    // exercise's load step and the carry starts again at the plan's own seconds. With no weight
+    // logged there is nothing for the app to add, and the next step is a heavier pair by hand.
+    if (policy === 'carry') {
+      if (last.ok) {
+        if (goal + inc <= cap) return { policy, kind: 'up', sec: goal + inc, why: ['Carried every set for the full time. {0}s more next time.', inc] }
+        const base = cfg.sec > 0 ? cfg.sec : goal
+        const step = defaultIncrement(cfg.id, unit)
+        if (last.weight > 0) return { policy, kind: 'up', weight: addStep(last.weight, step, step), sec: base, why: ['Carried {0}s every set, the cap. {1} {2} more and back to {3}s.', goal, step, unit, base] }
+        return { policy, kind: 'hold', sec: goal, why: ['Carried {0}s every set, the cap. Pick up a heavier pair and start again at {1}s.', goal, cfg.sec > 0 ? cfg.sec : goal] }
+      }
+    }
+    // Grip work shares the hands with the mat. A clean session earns a few seconds, never past
+    // the cap; after three or more mat sessions in the last week the target holds instead.
+    if (policy === 'grip') {
+      const step = cfg.inc > 0 ? cfg.inc : DEFAULT_GRIP_INCREMENT
+      if (last.ok) {
+        const mat = matWeekOf(S)
+        if (mat.logged && mat.sessions >= 3) return { policy, kind: 'hold', sec: goal, why: ['{0} mat sessions this week already loaded your grip. Same target again.', mat.sessions] }
+        if (goal + step <= cap) return { policy, kind: 'up', sec: goal + step, why: ['Held every set. {0}s more next time, up to {1}s.', step, cap] }
+        return { policy, kind: 'hold', sec: goal, why: ['At the cap of {0}s. Add load or a harder grip rather than more time.', goal] }
+      }
+    }
     if (last.ok) {
-      const sec = (last.goal || cfg.sec || 0) + inc
+      const sec = goal + inc
       return { policy, kind: 'up', sec, why: ['Held every set for the full time. Target goes up by {0}s.', inc] }
     }
     if (stalls >= deloadAt) {
@@ -532,6 +579,27 @@ export function nextPrescription(S, cfg, routine) {
       return { policy, kind: 'deload', sec, why: ['Short {0} sessions in a row. Back off to {1}s and build up again.', stalls, sec] }
     }
     return { policy, kind: 'hold', sec: last.goal || cfg.sec, why: ['Came up short last time. Same target again.'] }
+  }
+
+  // Power work (jumps, throws, swings, push presses) is judged on speed, not on the load. The
+  // app never adds weight to it: three clean sessions in a row add a set, up to a ceiling, and
+  // past that the honest advice is a heavier implement or a harder variation, chosen by a person.
+  // A short session holds everything: a power rep ground out slowly is the thing to avoid.
+  if (policy === 'power') {
+    const planSets = Math.max(1, cfg.sets || 1)
+    const reached = last.planned ? Math.max(planSets, (last.target && last.target.sets) || 0) : planSets
+    const keep = reached > planSets ? { sets: reached } : {}
+    const load = last.weight > 0 ? { weight: last.weight } : {}
+    if (!last.ok) return { policy, kind: 'hold', ...load, ...keep, why: ['Short last time. Same sets and load; stop the set when the speed drops.'] }
+    let clean = 0
+    // Clean sessions in a row at this load and this set count: adding a set starts the count over.
+    const setsOf = s => (s.target && s.target.sets) || planSets
+    for (let i = sessions.length - 1; i >= 0 && sessions[i].ok && sessions[i].weight === last.weight && setsOf(sessions[i]) === setsOf(last); i--) clean++
+    if (clean >= POWER_CLEAN_SESSIONS) {
+      if (reached < MAX_POWER_SETS) return { policy, kind: 'up', ...load, sets: reached + 1, why: ['{0} clean sessions. Add a set ({1} of {2}); the load stays, speed first.', clean, reached + 1, MAX_POWER_SETS] }
+      return { policy, kind: 'hold', ...load, ...keep, why: ['{0} fast sets. If this is easy, choose a heavier load or a harder variation; the app never adds load to power work.', reached] }
+    }
+    return { policy, kind: 'hold', ...load, ...keep, why: ['Every rep fast. {0} clean sessions of {1} before a set is added.', clean, POWER_CLEAN_SESSIONS] }
   }
 
   const w = last.weight
@@ -783,6 +851,16 @@ export function applyPrescription(sets, p, step = 2.5, floor = 0) {
   // a set where a barbell would have added a plate. Only ever upwards, and only by copying a
   // row that is already there: a session in progress must not lose a set it has logged.
   const workRows = out.filter(s => !isWarmupRow(s))
+  // A lighter or a competition week (lib/week-mode.js) is the one thing allowed to take sets
+  // away, and only ones nothing was logged in: the last open work rows go, from the end.
+  if (p.cut === true && p.sets > 0 && p.sets < workRows.length) {
+    let excess = workRows.length - p.sets
+    for (let i = out.length - 1; i >= 0 && excess > 0; i--) {
+      if (isWarmupRow(out[i]) || out[i].done || (isSideSet(out[i]) && (out[i].sides.L.done || out[i].sides.R.done))) continue
+      out.splice(i, 1)
+      excess--
+    }
+  }
   if (p.sets > workRows.length) {
     // An all-warm-up entry has no work row to seed growth from - growing warm-up copies
     // would both invent work and never terminate the loop. Leave the entry untouched.

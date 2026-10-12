@@ -54,7 +54,8 @@ const EX_SCHEMA = {
     weight: { type: 'number' }, prog: STR, inc: { type: 'number' },
     repsMin: { type: 'integer' }, repsMax: { type: 'integer' },
     bodyweight: { type: 'boolean' }, side: { type: 'boolean' },
-    sg: STR, why: STR, position: { type: 'integer' }
+    sg: STR, why: STR, position: { type: 'integer' },
+    role: STR, optional: { type: 'boolean' }
   },
   required: ['id', 'sets']
 };
@@ -72,6 +73,8 @@ export const CREATE_SCHEMA = {
     summary: STR,
     basedOn: STR,
     week: { type: 'object' },
+    // A plan that runs as a loop instead of a week: the routines take turns, in order.
+    rotation: { type: 'boolean' },
     // The caps are the validator's own (MAX_ROUTINES, MAX_EX_PER_ROUTINE), stated here as well
     // because "1-7 routines, each 3-12 exercises" in create.md is only a request. A small model
     // that starts repeating itself does not stop at a request: qwen2.5:3b walks the library id by

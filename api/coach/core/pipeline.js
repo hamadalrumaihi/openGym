@@ -74,7 +74,8 @@ export async function attemptOnce({ adapter, cfg, kind, payload, model, timeoutM
       : validatePlan(answer, {
       customIds, equipment, offered,
       workingWeights: payload.history?.workingWeights,
-      daysPerWeek: payload.coachProfile?.daysPerWeek
+      daysPerWeek: payload.coachProfile?.daysPerWeek,
+      gymDaysUnknown: payload.coachProfile?.gymDaysUnknown === true
     });
 
   if (!checked.ok) return { ok: false, repairable: !repair, errors: checked.errors, raw: r.text, errorClass: 'unusable' };

@@ -3792,6 +3792,12 @@ components:
         sessionMin: { type: integer, description: Minutes per session. }
         equipment: { type: array, items: { type: string } }
         limitations: { type: string, description: Injuries and anything to work around. }
+        sport: { type: string, enum: [judo, bjj, both], description: The grappling sport the gym plan supports. Absent for a plain gym plan. }
+        gi: { type: string, enum: [gi, nogi, both], description: What the grip work is for. Judo is always `gi`. }
+        matPerWeek: { type: [integer, 'null'], minimum: 0, maximum: 14, description: Mat sessions a week. `null` is not known or irregular, never zero. }
+        gymDaysUnknown: { type: boolean, description: The gym days cannot be promised. `daysPerWeek` is then null and the Coach answers with a rotation plan. }
+        compDate: { type: [string, 'null'], format: date }
+        priorities: { type: array, items: { type: string, enum: [grip, power, pull, trunk, legs, conditioning, mobility] } }
       additionalProperties: true
 
     CoachCohort:

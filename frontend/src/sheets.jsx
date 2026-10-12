@@ -29,6 +29,8 @@ import BodyMap from './components/BodyMap.jsx'
 import MuscleExplorer from './components/MuscleExplorer.jsx'
 import ExerciseViewToggle from './components/ExerciseViewToggle.jsx'
 import { sameMuscleFirst, swapMuscleOf } from './lib/similar-exercises.js'
+import { samePatternFirst, swapPatternOf } from './lib/substitute.js'
+import { PATTERN_LABEL } from './lib/exercise-roles.js'
 import { exerciseMuscleSnapshot, loadOfWorkouts, MUSCLES, MUSCLE_NAME, muscleWeightsOf, normalizeMuscleGroups, hasExplicitMuscleMetadata, inMuscleOrder } from './lib/muscles.js'
 import { parseImport, mergeImport } from './lib/import-csv.js'
 import { importHevyData, HevyApiError, HEVY_DEV_SETTINGS, mergeHevyRoutines } from './lib/import-hevy.js'
@@ -44,6 +46,7 @@ import { MOBILE, shareExport, shareExportBlob, printHtml } from './lib/mobile.js
 import { speedUnitOf, toSpeed, fromSpeed } from './lib/speed.js'
 import { buildCompletedWorkout, sessionEnd } from './lib/finish-workout.js'
 import { refillAfter } from './lib/rotation.js'
+import { shortRoutine } from './lib/sport-plans.js'
 import { isWarmupRow, hasCompletedWork } from './lib/workout-model.js'
 import { saveSessionAsRoutine } from './lib/session-routines.js'
 import { repeatSessionEntries } from './lib/session-repeat.js'
@@ -1273,6 +1276,9 @@ function usageMap(st) {
 }
 // The swap pickers' own scope (#473): exercises sharing the swapped exercise's target muscle.
 const SAME = '≈'
+// And, for compound work, the ones doing the same job (lib/substitute.js): a hinge for a hinge,
+// a carry for a carry, a jump for a jump. The muscle stays one chip away.
+const PATT = '≋'
 function ExercisePicker({ onPick, title, close, like }) {
   const st = useStore(s => s.S)
   const usage = usageMap(st)
@@ -1282,11 +1288,14 @@ function ExercisePicker({ onPick, title, close, like }) {
   const likeEx = like ? (EXIDX[like] || allExercises(st).find(e => e.id === like) || null) : null
   // A muscle nothing else trains gets no chip at all rather than one that lists nothing.
   const likeTg = swapMuscleOf(likeEx) && sameMuscleFirst(allExercises(st), likeEx).length ? swapMuscleOf(likeEx) : ''
+  const likePattern = swapPatternOf(likeEx) && samePatternFirst(allExercises(st), likeEx).length ? swapPatternOf(likeEx) : ''
   const [bp, setBp] = useState(() => {
-    if (!likeTg) return ''
     const prof = activeProfile(st)
+    // The pattern first where there is one: what the exercise is for beats what it works.
+    if (likePattern && samePatternFirst(allExercises(st), likeEx).some(e => !prof || exAvailable(st, e))) return PATT
+    if (!likeTg) return ''
     return sameMuscleFirst(allExercises(st), likeEx).some(e => !prof || exAvailable(st, e)) ? SAME : ''
-  })                                        // '' = all, '★' = chosen, '☆' = favourites, '≈' = same muscle, else a body part
+  })                                        // '' = all, '★' = chosen, '☆' = favourites, '≈' = same muscle, '≋' = same pattern, else a body part
   const [eq, setEq] = useState('')          // '' = any equipment
   const [cat, setCat] = useState('')        // '' = any type
   const [showAll, setShowAll] = useState(false)
@@ -1299,7 +1308,7 @@ function ExercisePicker({ onPick, title, close, like }) {
   const all = allExercises(st)
   const profile = activeProfile(st)
   const inScope = e => bp === '★' ? usage[e.id] : bp === '☆' ? isFav(st, e.id) : (!bp || e.bp === bp)
-  let inPart = searchExercises(bp === SAME ? sameMuscleFirst(all, likeEx) : all.filter(inScope), q)
+  let inPart = searchExercises(bp === PATT ? samePatternFirst(all, likeEx) : bp === SAME ? sameMuscleFirst(all, likeEx) : all.filter(inScope), q)
   if (bp === '★') inPart = [...inPart].sort((a, b) => (usage[b.id] - usage[a.id]) || exerciseNameFor(a).localeCompare(exerciseNameFor(b)))
   // The Library's Type row (issue #521), with its fallback: a type the search or muscle group
   // narrowed away is ignored for this view, not forgotten.
@@ -1314,7 +1323,7 @@ function ExercisePicker({ onPick, title, close, like }) {
   // While searching, what you have logged or planned follows right after them.
   const narrowedList = eqOn ? eqFiltered.filter(e => e.eq === eqOn) : eqFiltered
   const ranked = q.trim() ? sortYoursFirst(narrowedList, st, usage) : sortFavouritesFirst(narrowedList, st)
-  const f = bp === SAME ? sameMuscleFirst(ranked, likeEx) : ranked
+  const f = bp === PATT ? samePatternFirst(ranked, likeEx) : bp === SAME ? sameMuscleFirst(ranked, likeEx) : ranked
   const chosenCount = Object.keys(usage).length
   const favCount = (st.favEx || []).length
   const special = bp === '★' || bp === '☆'
@@ -1328,7 +1337,7 @@ function ExercisePicker({ onPick, title, close, like }) {
   // Worked out a beat behind the typing (useDeferredValue): the list itself never waits for it.
   const qLate = useDeferredValue(q)
   const similar = q.trim() && qLate === q && !special && f.length <= shown
-    ? similarExercises((profile && !showAll ? all.filter(e => exAvailable(st, e)) : all).filter(e => bp === SAME || !bp || e.bp === bp), q, f, f.length ? 12 : 30)
+    ? similarExercises((profile && !showAll ? all.filter(e => exAvailable(st, e)) : all).filter(e => bp === SAME || bp === PATT || !bp || e.bp === bp), q, f, f.length ? 12 : 30)
     : []
   const pickRow = e => <div key={e.id} className="item" {...tappable(() => onPick(e))}>
         <Thumb ex={e} /><div className="grow"><div className={`tt ${exerciseNameClass(e)}`}>{isFav(st, e.id) && <Icon name="starFill" className="fav-star" />}{exerciseNameFor(e)}</div><div className="ss capitalize">{t(MUSCLE_NAME[e.tg] || e.tg || e.bp)} · {t(e.eq)}</div></div>
@@ -1372,6 +1381,7 @@ function ExercisePicker({ onPick, title, close, like }) {
         without forgetting the choice (issue #71). The favourites/chosen chips still clear it —
         those are cross-body-part views where a stale equipment filter would be confusing. */}
     <div className="chips" ref={bpStrip} style={{ margin: eqOpts.length > 1 || catOpts.length > 1 ? '10px 0 6px' : '10px 0' }}>
+      {likePattern && <button className={'chip nocap' + (bp === PATT ? ' on' : '')} onClick={() => { setBp(PATT); setShown(50) }}><Icon name="swap" style={{ fontSize: 12, display: 'inline-block', marginInlineEnd: 4, verticalAlign: '-1px' }} />{t('Same job: {0}', t(PATTERN_LABEL[likePattern]))}</button>}
       {likeTg && <button className={'chip nocap' + (bp === SAME ? ' on' : '')} onClick={() => { setBp(SAME); setShown(50) }}><Icon name="figureStrength" style={{ fontSize: 12, display: 'inline-block', marginInlineEnd: 4, verticalAlign: '-1px' }} />{t('Same muscle: {0}', t(MUSCLE_NAME[likeTg] || likeTg))}</button>}
       {favCount > 0 && <button className={'chip' + (bp === '☆' ? ' on' : '')} onClick={() => { setBp('☆'); setEq(''); setShown(50) }}><Icon name="starFill" className="fav-star" />{t('Favourites')} ({favCount})</button>}
       {chosenCount > 0 && <button className={'chip' + (bp === '★' ? ' on' : '')} onClick={() => { setBp('★'); setEq(''); setShown(50) }}><Icon name="starFill" style={{ fontSize: 12, display: 'inline-block', marginInlineEnd: 4, verticalAlign: '-1px' }} />{t('Chosen')} ({chosenCount})</button>}
@@ -2767,14 +2777,18 @@ export function DayNoteRow({ iso, note }) {
 /* ============================ workout lifecycle ============================ */
 // `routineIds` accepts `string | string[] | null` — `[r.id]` for one routine,
 // `effectiveRoutineIds(...)` for today's planned session, `[]` / null for explicit freestyle.
-export function startFlow(routineIds) {
+export function startFlow(routineIds, { short = false } = {}) {
   // The weigh-in is a setting (Settings → During a workout, issue #137): off goes straight
   // into the session with no body weight on it, same as "Start without weighing in".
-  if (S().weighIn === false) { beginWorkout(routineIds, null); return }
-  bwSheet({ required: true, onDone: bw => beginWorkout(routineIds, bw) })
+  if (S().weighIn === false) { beginWorkout(routineIds, null, { short }); return }
+  bwSheet({ required: true, onDone: bw => beginWorkout(routineIds, bw, { short }) })
 }
-export function beginWorkout(routineIds, bw) {
-  const st = S()
+// `short` starts the session without the routine's optional accessories (a sport template's
+// slots marked `optional`, lib/sport-plans.js): the essentials, in less time. The routine itself
+// is untouched, and the session keeps the routine's name so the loop counts it as done.
+export function beginWorkout(routineIds, bw, { short = false } = {}) {
+  const st0 = S()
+  const st = short ? { ...st0, routines: st0.routines.map(r => ([].concat(routineIds).includes(r.id) ? shortRoutine(r) : r)) } : st0
   const { entries, routineIds: rids, routines } = buildCombinedEntries(st, routineIds)
   update(s => {
     s.active = {
@@ -3282,7 +3296,8 @@ function LastAndNext({ st, w }) {
         </div>
         <div className="small">{t('Today')}: {setsLine(row.today, st.unit)}</div>
         {row.last && <div className="small dim">{t('Last time')}: {setsLine(row.last, st.unit)}</div>}
-        {row.next && <div className="small accent">{t('Next time')}: {row.next.w != null ? fmtNum(row.next.w) + ' ' + st.unit : ''}{row.next.w != null && row.next.r != null ? ' × ' : ''}{row.next.r != null ? row.next.r : ''} · {nextWord[row.next.kind]}</div>}
+        {/* No load is no number: a push-up or a jump reads "Next time: 5", never "0 kg × 5", as setsLine above. */}
+        {row.next && <div className="small accent">{t('Next time')}: {row.next.w > 0 ? fmtNum(row.next.w) + ' ' + st.unit : ''}{row.next.w > 0 && row.next.r != null ? ' × ' : ''}{row.next.r != null ? row.next.r : ''} · {nextWord[row.next.kind]}</div>}
       </div>
     })}</div>
   </div>

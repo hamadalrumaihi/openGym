@@ -7,7 +7,8 @@
 // Names stay canonical English — they become ordinary user routines, which are not translated.
 import { uid } from './format.js'
 import { EXIDX } from './exercises.js'
-import { eqAvailable, ALL_EQUIPMENT } from './equipment.js'
+import { eqAvailable } from './equipment.js'
+import { findSubstitute } from './substitute.js'
 
 const PPL = [
   ['push', 'Push Day', 'barbell', [['0025', 4, 8], ['0047', 3, 10], ['0426', 3, 10], ['0334', 3, 12], ['0241', 3, 12], ['0251', 3, 10]]],
@@ -58,43 +59,10 @@ export const starterPlanOptions = () =>
 // The weekdays a plan would claim, or null for an unknown id.
 export const starterPlanDays = id => PLANS[id]?.schedule.map(([day]) => day) ?? null
 
-// Words that name the equipment, not the movement ("barbell", "lever", "machine"…), so that
-// "barbell bench press" and "dumbbell bench press" read as the same lift.
-const EQ_WORDS = new Set(ALL_EQUIPMENT.flatMap(e => e.split(/[^a-z0-9]+/)).concat(['lever', 'leverage', 'machine', 'sled']))
-const words = ex => new Set(ex.n.toLowerCase().split(/[^a-z0-9]+/).filter(w => w && !EQ_WORDS.has(w)))
-const jaccard = (a, b) => {
-  const inter = [...a].filter(x => b.has(x)).length
-  return inter ? inter / (a.size + b.size - inter) : 0
-}
-
-// Names that are not working sets: stretches, holds, mobility and warm-up drills. Never a
-// stand-in for a lift, whatever body part and muscle they share with it.
-const NOT_A_LIFT = /stretch|isometric|squeeze|yoga|\bpose\b|toe touch|\broll(er)?\b|mobility|circles|warm-?up|boxing|against wall/i
-// "… on exercise ball" is tagged with its weight (dumbbell), but needs a ball nobody ticked.
-const NEEDS_BALL = /exercise ball|stability ball|swiss ball|bosu/i
-
-// The best stand-in for `ex` among exercises the equipment list allows. Same body part, and it
-// has to share the target muscle, the main muscle or a helper muscle with `ex`. Closest wins:
-// same target muscle, then the movement by name, then helper muscles. When `ex` is a loaded
-// lift, one that is loaded too beats a body-weight drill — a push-up is not a bench press.
-// `taken` keeps a routine from ending up with the same exercise twice. null when nothing fits.
-export const substituteFor = (ex, equipment, taken) => {
-  const hasBall = equipment.includes('stability ball') || equipment.includes('bosu ball')
-  const exWords = words(ex), exSm = new Set([ex.mg, ...(ex.sm || [])])
-  const loaded = ex.eq !== 'body weight'
-  let best = null, bestScore = -Infinity
-  for (const c of Object.values(EXIDX)) {
-    if (c.bp !== ex.bp || taken.has(c.id) || !eqAvailable(equipment, c)) continue
-    if (NOT_A_LIFT.test(c.n) || (!hasBall && NEEDS_BALL.test(c.n))) continue
-    const sm = jaccard(exSm, new Set([c.mg, ...(c.sm || [])]))
-    if (c.tg !== ex.tg && c.mg !== ex.mg && !sm) continue
-    const score = 2 * (c.tg === ex.tg) + (c.mg === ex.mg) + 3 * jaccard(exWords, words(c)) + 2 * sm
-      - (loaded && c.eq === 'body weight' ? 3 : 0)
-    // id as the last key: the same equipment always gives the same plan
-    if (score > bestScore || (score === bestScore && c.id < best.id)) { best = c; bestScore = score }
-  }
-  return best
-}
+// The stand-in for an exercise the equipment list cannot do (lib/substitute.js): the same
+// movement pattern and purpose when the exercise has a known role, else the muscle match. The
+// triples here carry sets and reps only, so the stand-in has to be logged the same way.
+export const substituteFor = (ex, equipment, taken) => findSubstitute(ex, equipment, taken, { sameMode: true })
 
 // Re-cuts a routine list for an equipment list: what you can already do stays, what you can't
 // is swapped for its closest match, and what has no match is dropped (with its routine, when

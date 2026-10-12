@@ -237,6 +237,15 @@ export const DEF = {
   // cleared) replaces that role's curated exercise-id whitelist with a single user-chosen
   // exercise id; the stamp is what lets a sync keep the choice made last (lib/sync-merge.js).
   balanceTemplate: DEFAULT_TEMPLATE_ID, balanceOverrides: {},
+  // The sport profile (lib/sport.js): judo, BJJ or both, gi or no-gi, lifting experience, how
+  // many classes and gym days a week are realistic, a competition date, the week mode. One
+  // object, stamped as a whole on every change; null until a sport is chosen. Setting it never
+  // touches routines, workouts or records.
+  sport: null,
+  // Mat sessions logged ({ [id]: { d, sport, min, effort, note?, _ts } }) and the morning
+  // readiness check-in ({ [iso]: { energy, soreness, sleep, _ts } }), each entry stamped on its
+  // own like a day note, so two devices' entries both survive a sync (lib/sync-merge.js).
+  matLog: {}, readiness: {},
 }
 const clone = o => JSON.parse(JSON.stringify(o))
 

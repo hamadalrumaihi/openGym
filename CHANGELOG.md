@@ -1,5 +1,29 @@
 # Changelog
 
+## Unreleased
+
+**Gym plans for judo and BJJ.** Set a sport profile (judo, BJJ or both, gi or no-gi, your gym
+experience apart from your mat experience) and load sessions for one, two or three gym days or an
+A/B loop. Nothing you already have is changed. Details in [docs/dev/SPORT.md](docs/dev/SPORT.md).
+
+- **Every session has a shorter version** that keeps the essentials and skips the accessories,
+  one tap from Home. Home also shows the next session, about how long it takes, the equipment
+  and the loads it opens at.
+- **Each exercise says what it is for**: the quality it trains, why it matters for your sport,
+  the cues, the effort target and how it progresses.
+- **Swaps keep the job.** A swap or an equipment fit keeps the movement pattern and the purpose:
+  a jump for a jump, a carry for a carry, a hold adapted from reps instead of copied. The swap
+  picker opens on "Same job" for compound lifts. When nothing fits, the app says so.
+- **Progression by kind of exercise.** Power work never gets load added and earns sets instead;
+  carries grow in time, then load; grip holds grow slowly and hold after a heavy mat week.
+- **Lighter and competition weeks**, chosen by you, with every changed target explained.
+- **Mat sessions and a readiness check-in**: a few seconds each, read as what you reported, never
+  as a recovery score. An unlogged week is unknown, not rest.
+- **The Coach** asks about your sport, mat sessions and competition, can answer with a rotation
+  when you cannot promise gym days, and reads the sport context (consent version 3).
+- **Fixes:** the demo Coach's consent list now comes from the shared list; plan files keep a
+  slot's role, short-session flag and time cap, and refuse junk in them.
+
 ## v1.4.1 (2026-10-10)
 
 Bug fixes for v1.4.0, mostly the things you told us about on Discord and GitHub.

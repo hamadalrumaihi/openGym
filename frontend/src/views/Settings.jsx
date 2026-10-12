@@ -35,6 +35,9 @@ import { checkForUpdate, downloadAndInstall, fetchChecksum, RELEASES_PAGE } from
 import { forgetCoach } from '../lib/coach-api.js'
 import { REST_MAX, REST_PAUSE_MIN, REST_PAUSE_MAX, fmtRest, fmtDuration } from '../lib/duration.js'
 import { starterPlanSheet, confirmSheet, importFromApp, importFromHevy, equipmentProfileSheet, plateInventorySheet, dumbbellInventorySheet, menuSheet } from '../sheets.jsx'
+import { sportSetupSheet, sportPlanSheet } from '../sport-sheets.jsx'
+import { sportOf } from '../lib/sport.js'
+import { SPORT_NAME, GI_NAME } from '../lib/sport-copy.js'
 import Icon from '../components/Icon.jsx'
 import { durationSheet } from '../components/DurationWheel.jsx'
 import { showsConnection, showsLocalLine } from '../components/SyncBanner.jsx'
@@ -77,6 +80,9 @@ const shortWeekday = day => {
 const standalone = () => {
   try { return !!(window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true) } catch { return false }
 }
+
+// 'Judo · Gi' for the row's subtitle, or a nudge to set one up.
+const sportLine = S => { const sp = sportOf(S); return sp ? SPORT_NAME[sp.kind]() + (sp.kind !== 'judo' ? ' · ' + GI_NAME[sp.gi]() : '') : t('Judo, BJJ or both') }
 
 export default function Settings({ page = null, find = null, via = null }) {
   const nav = useNavigate()
@@ -640,6 +646,9 @@ export default function Settings({ page = null, find = null, via = null }) {
       </Section>
       <Section>
         <Row icon="clipboard" iconTint="var(--green)" title={t('Load starter plan')} accessory="chevron" onClick={starterPlanSheet} />
+        {/* The sport profile (lib/sport.js) and the templates cut from it (lib/sport-plans.js). */}
+        <Row icon="figureStrength" iconTint="var(--orange)" title={t('Sport profile')} subtitle={sportLine(S)} accessory="chevron" onClick={() => sportSetupSheet()} />
+        <Row icon="figureStrength" iconTint="var(--green)" title={t('Sport plan')} accessory="chevron" onClick={sportPlanSheet} />
       </Section>
     </>,
 

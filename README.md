@@ -62,6 +62,10 @@ if you want to try it before installing anything.
   browsable by muscle on a body map. Filter by the equipment you own.
 - Four starter plans (Push/Pull/Legs, Upper/Lower, Full Body, 5×5) that load as ordinary,
   editable routines.
+- **Gym plans for judo and BJJ**: strength, power, grip, trunk and conditioning sessions for
+  one, two or three gym days or an A/B loop that never needs catching up, with a shorter version
+  of every session, a note on what each exercise is for, a mat-session log, a readiness check-in
+  and lighter or competition weeks. See [docs/dev/SPORT.md](docs/dev/SPORT.md).
 - Move a session to another day without touching the weekly plan. The week starts on Monday or
   Sunday, your choice.
 - Or skip the weekdays altogether: a **rotation** (A, B, C, A, ...) where the next session is

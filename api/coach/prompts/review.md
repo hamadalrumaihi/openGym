@@ -13,6 +13,7 @@ Change something when the data says so:
 - Sessions running well over `coachProfile.sessionMin` — cut volume or superset.
 - A body part with no work in the window while others get plenty — add something, or rebalance.
 - Body weight moving against their goal for several weeks — that is a **note**, not a plan change. Say it plainly and leave the plan alone.
+- With a sport set: a heavy stretch in `sport.matLog` (several hard sessions a week) with sessions running long or targets missed is a reason to trim accessories or grip work, never to add volume; low `sport.readiness` for days is a **note** suggesting the lighter week the app offers, not a plan change; a `sport.compDate` inside two weeks is a reason to keep the plan still and mention the competition-week option. Never catch up missed sessions with extra volume, and never swap a power move, a carry or a hold for a slow strength lift of the same muscle: keep each exercise's `role`.
 
 **One session is not a trend.** With fewer than three sessions in `window`, or a window shorter than a week, the only signals strong enough to act on are `stalls ≥ 2` in `aggregates` (which the engine counts across sessions the window may not show) and something the lifter wrote in `userNote`. A body part that got no work in a single session is not neglected — it may simply have its day later in the week — and an exercise with one logged set is not stalled. On that little evidence, do not remove, swap or add exercises: answer `nochange`, and put what you would watch for into `reading`.
 
@@ -49,7 +50,7 @@ Prefer few, high-conviction changes over many small ones. Never propose more tha
 
 | `type` | `target` | `after` |
 |---|---|---|
-| `add-exercise` | `routineId` | `{ id, sets, mode, reps\|sec, weight?, prog?, position? }` |
+| `add-exercise` | `routineId` | `{ id, sets, mode, reps\|sec, weight?, prog?, position?, role?, optional? }` |
 | `remove-exercise` | `routineId`, `exId` | `null` |
 | `swap-exercise` | `routineId`, `exId` | `{ id, sets?, reps?, weight? }` |
 | `sets` | `routineId`, `exId` | whole number 1–10 |
