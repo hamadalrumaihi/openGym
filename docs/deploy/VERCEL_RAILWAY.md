@@ -113,7 +113,7 @@ Recorded on 2026-10-12, before any change to the Vercel project.
 
 - Source: `github.com/hamadalrumaihi/cid`, branch `main`, commit
   `433fdf110f4623704d321b48d996401d30cba0d9` ("Add a reversible portal mode", merged as PR #405),
-  tagged `cid-portal-final-production` in that repository. The working copy had no uncommitted
+  preserved on the branch `archive/cid-portal-final-production` in that repository. The working copy had no uncommitted
   changes. Nothing in that repository was changed or deleted.
 - Last production deployment: `dpl_CgKNJgFgczoFEYPTLm8XfNtv1DUy`
   (cid-3u0y0gnx7-hamadalrumaihis-projects.vercel.app), a rollback candidate.
@@ -136,6 +136,6 @@ Recorded on 2026-10-12, before any change to the Vercel project.
    → Instant Rollback (or "Promote to Production"). It brings back the exact build with the
    environment it was built with.
 2. Full: reconnect Git to `hamadalrumaihi/cid`, set Framework Preset back to Next.js, restore
-   the recorded environment variables, and redeploy `main` (or the tag).
+   the recorded environment variables, and redeploy `main` (or `archive/cid-portal-final-production`).
 3. The openGym API on Railway keeps running independently. Pause it there if needed; its
    volume keeps the openGym data.
