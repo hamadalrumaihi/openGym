@@ -12,17 +12,23 @@ browser ──https──> cidportal-ody.vercel.app ──(static)──> app sh
 ```
 
 Both halves build from this repository: Vercel from `frontend/` (`frontend/vercel.json`),
-Railway from `api/` (`api/railway.json`).
+Railway from `api/` (`api/Dockerfile`, default target).
 
 ## Railway: the API
 
 Create it in its own Railway project (not in Blue Belt Media's).
 
 1. New project → Deploy from GitHub repo → `hamadalrumaihi/openGym`, branch `main`.
-2. Service settings:
+2. Service settings (Settings tab, or `serviceInstanceUpdate` in Railway's API):
    - Root Directory: `/api`
-   - Config-as-code path: `/api/railway.json` (Dockerfile builder, health check
-     `/api/health`, one replica, restart on failure)
+   - Builder: Dockerfile, path `Dockerfile` (found automatically in the root directory)
+   - Watch paths: `/api/**`
+   - Health check path `/api/health`, timeout 120 s
+   - One replica, restart on failure, up to 10 retries
+
+   `api/railway.json` records the same values. Railway no longer accepts a config-as-code
+   path on new services, so set them in the service itself. Railway also refuses any
+   Dockerfile with a `VOLUME` line, which is why `api/Dockerfile` declares none.
 3. Add a volume to the service, mount path `/data`. Every user, passkey, session secret and
    workout lives there. Without it a redeploy starts from an empty server.
 4. Variables:
@@ -41,6 +47,10 @@ Create it in its own Railway project (not in Blue Belt Media's).
 The Dockerfile's default target is built, which carries no AI runtime: the Coach stays off and
 everything else works without it. The data files are plain JSON written atomically, so the
 service must stay at one replica.
+
+The running instance: Railway project `opengym-api` (workspace "hamadalrumaihi's Projects"),
+service `api`, environment `production`, volume `api-volume` at `/data`, public origin
+`https://api-production-1ff2.up.railway.app`.
 
 ## Vercel: the app
 
