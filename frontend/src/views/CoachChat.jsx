@@ -310,7 +310,7 @@ function PlanCard({ p, S, update, toast, nav, refresh }) {
         const res = applyCreatedPlan(s, p, { schedule })
         n = res?.routines?.length || b.routines.length
         appendChat(s, { role: 'coach', kind: 'applied', ref: res.logId, text: schedule
-          ? t('Imported! {0} routines are in your plan and your week is set. See you at the next session.', n)
+          ? (b.rotation ? t('Imported! {0} routines are in your plan and in your rotation. The next session is the first one.', n) : t('Imported! {0} routines are in your plan and your week is set. See you at the next session.', n))
           : t('Imported! {0} routines are in your plan. Your week is unchanged; schedule them whenever you like.', n) })
       })
       resolvePending({ accepted: ['plan'] }).catch(() => {})
@@ -337,7 +337,9 @@ function PlanCard({ p, S, update, toast, nav, refresh }) {
         {!!b.basedOn && <p className="pcard-sum" style={{ fontSize: 13 }}>{b.basedOn}</p>}
       </div>
 
-      <WeekStrip days={weekDays} ws={weekStartOf(S)} />
+      {b.rotation
+        ? <div className="pcard-sum" style={{ fontSize: 13 }}><Icon name="repeat" /> {t('Runs as a rotation: {0}, in turn, on whatever days you train. A missed week changes nothing.', b.routines.map(x => x.name).join(' → '))}</div>
+        : <WeekStrip days={weekDays} ws={weekStartOf(S)} />}
 
       {b.routines.length > 1 && <div className="pcard-tabs">
         {b.routines.map((x, i) => <button key={x.id || i} className={'pcard-tab' + (i === tab ? ' on' : '')} onClick={() => setTab(i)}><Icon name={glyphOf(x.emoji)} />{x.name}</button>)}
@@ -346,7 +348,7 @@ function PlanCard({ p, S, update, toast, nav, refresh }) {
       {r && <RoutineBlock r={r} unit={S.unit} speedUnit={speedUnitOf(S)} />}
 
       <div className="pcard-row">
-        <span className="lrow-m"><span className="lrow-t">{t('Use this weekly schedule')}</span><span className="lrow-s">{t('Replaces your current week. Days this plan leaves empty become rest days.')}</span></span>
+        <span className="lrow-m"><span className="lrow-t">{b.rotation ? t('Use as my rotation') : t('Use this weekly schedule')}</span><span className="lrow-s">{b.rotation ? t('Replaces your current loop, if you have one. Your weekdays are left alone.') : t('Replaces your current week. Days this plan leaves empty become rest days.')}</span></span>
         <Switch checked={schedule} onChange={setSchedule} />
       </div>
       <div className="pcard-note">{t('The Coach is not a doctor or a physiotherapist. If something hurts, ask a professional.')}</div>

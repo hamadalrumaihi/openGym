@@ -78,7 +78,7 @@ const weekday = d => (typeof d === 'number' ? d : typeof d === 'string' && /^\d$
 // any id an import or an older build ever wrote, and no room for a paragraph.
 export const ID_MAX = 64;
 // The progression engine's policies (frontend/src/lib/progression.js POLICIES, validate.js).
-const POLICIES = ['off', 'linear', 'greyskull', 'double', 'time'];
+const POLICIES = ['off', 'linear', 'greyskull', 'double', 'triple', 'time', 'power', 'carry', 'grip'];
 const ident = v => (typeof v === 'string' ? v.slice(0, ID_MAX) : typeof v === 'number' && Number.isFinite(v) ? v : null);
 const policy = v => (POLICIES.includes(v) ? v : null);
 // A finite number, or a number written as a short string (the app writes numbers, but a
@@ -95,13 +95,36 @@ function activeEquipment(S) {
   const prof = list(S.equipProfiles).find(x => x && x.id === S.activeEquipId);
   return list(prof?.equipment);
 }
+const SPORTS = ['judo', 'bjj', 'both'];
+const GIS = ['gi', 'nogi', 'both'];
+const PRIORITIES = ['grip', 'power', 'pull', 'trunk', 'legs', 'conditioning', 'mobility'];
+const WEEK_MODES = ['lighter', 'comp'];
+// A count that may honestly be zero: "0 classes a week" is an answer, null is "not known".
+const countOrZero = (v, hi) => {
+  if (v === null || v === undefined || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.min(hi, Math.max(0, Math.round(n))) : null;
+};
 function cleanProfile(profile) {
   const days = Array.isArray(profile.preferredDays) ? profile.preferredDays : [];
   const equipment = Array.isArray(profile.equipment) ? profile.equipment : [];
+  const sport = SPORTS.includes(profile.sport) ? profile.sport : null;
   return {
     goal: word(profile.goal, PROFILE_WORD_MAX),
     experience: word(profile.experience, PROFILE_WORD_MAX),
     daysPerWeek: count(profile.daysPerWeek, 1, 7),
+    // The sport side of the intake (frontend views/CoachIntake.jsx, lib/sport.js). Each field is
+    // read by what it is meant to be; absent reads as absent, never as a default sport. A null
+    // matPerWeek is "not known or irregular" and is sent as null so the model cannot read it as
+    // no mat training.
+    ...(sport ? {
+      sport,
+      gi: sport === 'judo' ? 'gi' : (GIS.includes(profile.gi) ? profile.gi : 'both'),
+      matPerWeek: countOrZero(profile.matPerWeek, 14),
+      gymDaysUnknown: profile.gymDaysUnknown === true,
+      compDate: day(profile.compDate),
+      priorities: (Array.isArray(profile.priorities) ? profile.priorities : []).filter(p => PRIORITIES.includes(p)).slice(0, 7),
+    } : {}),
     // Weekdays 0-6, each once: seven entries is the whole week, so anything past that is noise.
     preferredDays: [...new Set(days.map(weekday).filter(d => Number.isInteger(d) && d >= 0 && d <= 6))],
     sessionMin: count(profile.sessionMin, 1, 24 * 60),
@@ -110,6 +133,42 @@ function cleanProfile(profile) {
     likes: text(profile.likes, PROFILE_TEXT_MAX.likes),
     dislikes: text(profile.dislikes, PROFILE_TEXT_MAX.dislikes),
     notes: text(profile.notes, PROFILE_TEXT_MAX.notes)
+  };
+}
+
+/* ---------- the sport context ---------- */
+const scale = v => { const n = Number(v); return Number.isInteger(n) && n >= 1 && n <= 5 ? n : null; };
+const dayBefore = (today, n) => { const d = new Date(today + 'T12:00:00'); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); };
+export const MAT_LOG_DAYS = 14;
+export const READINESS_DAYS = 7;
+function cleanSportContext(S, today) {
+  const sp = S && S.sport && typeof S.sport === 'object' ? S.sport : null;
+  if (!sp || !SPORTS.includes(sp.kind)) return null;
+  const weekMode = sp.weekMode && typeof sp.weekMode === 'object' && WEEK_MODES.includes(sp.weekMode.mode) && day(sp.weekMode.until) && sp.weekMode.until >= today
+    ? { mode: sp.weekMode.mode, until: day(sp.weekMode.until) } : null;
+  const matFrom = dayBefore(today, MAT_LOG_DAYS - 1), readyFrom = dayBefore(today, READINESS_DAYS - 1);
+  const matLog = Object.values(S.matLog && typeof S.matLog === 'object' ? S.matLog : {})
+    .filter(e => e && typeof e === 'object' && day(e.d) && (e.sport === 'judo' || e.sport === 'bjj') && e.d >= matFrom && e.d <= today)
+    .map(e => ({ d: day(e.d), sport: e.sport, min: countOrZero(e.min, 600), effort: scale(e.effort) }))
+    .sort((a, b) => (a.d < b.d ? -1 : a.d > b.d ? 1 : 0))
+    .slice(-30);
+  const readiness = Object.entries(S.readiness && typeof S.readiness === 'object' ? S.readiness : {})
+    .filter(([d, e]) => day(d) && d >= readyFrom && d <= today && e && typeof e === 'object' && scale(e.energy) && scale(e.soreness) && scale(e.sleep))
+    .map(([d, e]) => ({ d, energy: scale(e.energy), soreness: scale(e.soreness), sleep: scale(e.sleep) }))
+    .sort((a, b) => (a.d < b.d ? -1 : a.d > b.d ? 1 : 0))
+    .slice(-READINESS_DAYS);
+  return {
+    kind: sp.kind,
+    gi: sp.kind === 'judo' ? 'gi' : (GIS.includes(sp.gi) ? sp.gi : 'both'),
+    lifting: ['new', 'returning', 'regular'].includes(sp.lifting) ? sp.lifting : null,
+    matPerWeek: countOrZero(sp.matPerWeek, 14),
+    gymDays: [1, 2, 3].includes(sp.gymDays) ? sp.gymDays : sp.gymDays === 'ab' ? 'ab' : null,
+    sessionMin: count(sp.sessionMin, 20, 180),
+    compDate: day(sp.compDate),
+    priorities: (Array.isArray(sp.priorities) ? sp.priorities : []).filter(x => PRIORITIES.includes(x)).slice(0, 7),
+    weekMode,
+    // Unlogged is unknown: an empty list says nothing about the week, and the prompt says so.
+    matLog, readiness,
   };
 }
 
@@ -217,6 +276,9 @@ function cleanEx(e) {
   if (e.side) o.side = true;
   // A superset tag is an id the app mints (sg-0-1, hs + uid()), so it is bounded like one.
   if (e.sg) o.sg = ident(e.sg);
+  // A sport-template slot's role and whether the shorter session skips it (frontend lib/sport-plans.js).
+  if (typeof e.role === 'string' && e.role) o.role = e.role.slice(0, 24);
+  if (e.optional === true) o.optional = true;
   return o;
 }
 /**
@@ -505,6 +567,13 @@ export function build(S, opts = {}) {
   if (p.coachProfile && !p.coachProfile.equipment.length) {
     p.coachProfile.equipment = cleanProfile({ equipment: activeEquipment(S) }).equipment;
   }
+
+  // The sport context (frontend lib/sport.js), when a sport is set: the profile, the last two
+  // weeks of mat sessions as logged, the last week of readiness check-ins, and the week mode.
+  // Every field is copied by name and bounded; the logs are what the person typed, in the
+  // person's own scale (effort 1-5, energy/soreness/sleep 1-5), never a derived number.
+  const sportCtx = cleanSportContext(S, p.meta.today);
+  if (sportCtx) p.sport = sportCtx;
 
   // What the user already turned down, so the Coach does not re-propose it without new
   // evidence (FR-26). Summaries only — the log's full before/after stays on the device.

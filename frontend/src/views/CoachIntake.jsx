@@ -20,6 +20,8 @@ import { requestPlan, disclosure, JOB_ERRORS } from '../lib/coach-api.js'
 import { DEMO } from '../lib/demo.js'
 import { MOBILE } from '../lib/mobile.js'
 import { activeProfile } from '../lib/equipment.js'
+import { sportOf, withSport, PRIORITIES, SPORT_KINDS, GI_OPTIONS } from '../lib/sport.js'
+import { SPORT_NAME, GI_NAME, PRIORITY_NAME } from '../lib/sport-copy.js'
 import Icon from '../components/Icon.jsx'
 import { Button, TextArea } from '../components/ui.jsx'
 import '../coach.css'
@@ -68,15 +70,25 @@ export default function CoachIntake() {
   // changed and CONSENT_VERSION moved) reads the new terms and goes back to the Coach. Without
   // this the redirect from the chat replayed all seven questions and ended in a new plan request.
   const [reconsentOnly] = useState(() => !editing && !hasConsent(S) && !!S.coach?.profile)
-  const STEPS = reconsentOnly ? ['consent'] : [...(needConsent ? ['consent'] : []), 'goal', 'experience', 'days', 'length', 'equipment', 'limits', 'extras']
+  // The sport screens sit between experience and the schedule: who you train for decides what
+  // a sensible schedule even looks like (an A/B loop when the gym days cannot be promised).
+  const STEPS = reconsentOnly ? ['consent'] : [...(needConsent ? ['consent'] : []), 'goal', 'experience', 'sport', 'mat', 'days', 'length', 'equipment', 'limits', 'extras']
   const [step, setStep] = useState(0)
   const [busy, setBusy] = useState(false)
-  const [p, setP] = useState(() => ({
-    goal: null, experience: null, daysPerWeek: 3, preferredDays: [1, 3, 5],
-    // A home gym already set up under Settings → Equipment is the best first guess here.
-    sessionMin: 60, equipment: (activeProfile(S)?.equipment || []).filter(e => EQUIPMENT.includes(e)), limitations: '', likes: '', dislikes: '', notes: '',
-    ...(S.coach?.profile || {})
-  }))
+  const [p, setP] = useState(() => {
+    // The sport profile already set up on Home or in Settings (lib/sport.js) is the first guess
+    // for the sport screens, and its gym days for the schedule.
+    const sp = sportOf(S)
+    return {
+      goal: null, experience: null, daysPerWeek: 3, preferredDays: [1, 3, 5],
+      // A home gym already set up under Settings → Equipment is the best first guess here.
+      sessionMin: sp?.sessionMin || 60, equipment: (activeProfile(S)?.equipment || []).filter(e => EQUIPMENT.includes(e)), limitations: '', likes: '', dislikes: '', notes: '',
+      sport: sp?.kind || null, gi: sp?.gi || 'both', matPerWeek: sp?.matPerWeek ?? null, matUnknown: !sp || sp.matPerWeek == null,
+      gymDaysUnknown: !!sp && sp.gymDays == null, compDate: sp?.compDate || null, priorities: sp?.priorities || [],
+      ...(sp && typeof sp.gymDays === 'number' ? { daysPerWeek: sp.gymDays } : {}),
+      ...(S.coach?.profile || {})
+    }
+  })
   const set = patch => setP(v => ({ ...v, ...patch }))
 
   if (!coachAvailable(config, user, { demo: DEMO, mobile: MOBILE, coachMode })) { nav('/home', { replace: true }); return null }
@@ -84,7 +96,7 @@ export default function CoachIntake() {
   const key = STEPS[step]
   const last = step === STEPS.length - 1
   const canNext = key === 'goal' ? !!p.goal : key === 'experience' ? !!p.experience : key === 'length' ? p.sessionMin >= 10 : true
-  const optional = ['equipment', 'limits', 'extras'].includes(key)
+  const optional = ['sport', 'mat', 'equipment', 'limits', 'extras'].includes(key)
 
   const next = () => (last ? finish() : setStep(step + 1))
   const back = () => (step ? setStep(step - 1) : nav(editing ? '/coach' : '/plan'))
@@ -97,11 +109,27 @@ export default function CoachIntake() {
 
   const finish = async () => {
     // `??`, not `||`: only a missing answer takes the default. Nought is an answer, and the clamp
-    // turns it into one day like every other count below the floor.
-    const profile = { ...p, daysPerWeek: Math.min(7, Math.max(1, p.daysPerWeek ?? 3)) }
+    // turns it into one day like every other count below the floor. "Not sure" about the gym
+    // days sends no count at all, and the Coach answers with a rotation.
+    const profile = {
+      ...p,
+      daysPerWeek: p.gymDaysUnknown ? null : Math.min(7, Math.max(1, p.daysPerWeek ?? 3)),
+      matPerWeek: p.sport && !p.matUnknown ? p.matPerWeek : null,
+      ...(p.sport ? {} : { gi: undefined, matPerWeek: null, compDate: null, priorities: [] }),
+    }
     update(s => {
       const c = (s.coach = s.coach || emptyCoach())
       c.profile = profile
+      // The sport profile the rest of the app reads (Home, the templates, the progression's grip
+      // rule) follows the intake's answers; the week mode already set is kept.
+      if (profile.sport) {
+        s.sport = withSport(s, {
+          kind: profile.sport, gi: profile.gi, matPerWeek: profile.matPerWeek,
+          gymDays: profile.gymDaysUnknown ? null : (profile.daysPerWeek <= 3 ? profile.daysPerWeek : s.sport?.gymDays ?? null),
+          sessionMin: profile.sessionMin, compDate: profile.compDate, priorities: profile.priorities,
+          lifting: profile.experience === 'regular' ? 'regular' : profile.experience === 'returning' ? 'returning' : 'new',
+        })
+      }
       // The conversation opens with the answers — rendered from the profile, so an edit later
       // is reflected rather than duplicated. One intake line whoever is writing it: a first-timer
       // whose plan request failed presses the button again, and must not open the thread with
@@ -159,13 +187,47 @@ export default function CoachIntake() {
         </div>
       </>}
 
+      {key === 'sport' && <>
+        <div className="ob-eyebrow">{t('Sport')}</div>
+        <h1 className="ob-h">{t('Training for the mat?')}</h1>
+        <p className="ob-p">{t('Judo, Brazilian jiu-jitsu or both. The plan then builds the strength, power, grip and conditioning the mat asks for. Skip this if the gym is the whole story.')}</p>
+        <div className="ob-choices">
+          {SPORT_KINDS.map(k => <Choice key={k} on={p.sport === k} icon="figureStrength" title={SPORT_NAME[k]()} onClick={() => set({ sport: p.sport === k ? null : k })} />)}
+        </div>
+        {p.sport && p.sport !== 'judo' && <>
+          <div className="ob-sub">{t('Gi or no-gi')}</div>
+          <div className="ob-chips">
+            {GI_OPTIONS.map(g => <button key={g} className={'chip' + ((p.gi || 'both') === g ? ' on' : '')} onClick={() => set({ gi: g })}>{GI_NAME[g]()}</button>)}
+          </div>
+        </>}
+        {p.sport && <div className="ob-note">{t('Your experience answer above is about the gym. Years on the mat can go with a first month under a bar, and the Coach keeps the two apart.')}</div>}
+      </>}
+
+      {key === 'mat' && <>
+        <div className="ob-eyebrow">{t('Mat training')}</div>
+        <h1 className="ob-h">{t('How many mat sessions a week?')}</h1>
+        <p className="ob-p">{p.sport ? t('Roughly. Not sure is a real answer: the Coach then plans around an unknown mat load rather than around none.') : t('No sport chosen: skip this.')}</p>
+        {p.sport && <>
+          <div className="ob-days">
+            {[0, 1, 2, 3, 4, 5, 6, 7].map(n => <button key={n} className={'ob-day' + (!p.matUnknown && p.matPerWeek === n ? ' on' : '')} onClick={() => set({ matPerWeek: n, matUnknown: false })}>{n}</button>)}
+          </div>
+          <div className="ob-quick">
+            <button className={'chip' + (p.matUnknown ? ' on' : '')} onClick={() => set({ matUnknown: true })}>{t('Not sure / irregular')}</button>
+          </div>
+        </>}
+      </>}
+
       {key === 'days' && <>
         <div className="ob-eyebrow">{t('Schedule')}</div>
         <h1 className="ob-h">{t('How many days a week?')}</h1>
         <p className="ob-p">{t('Pick what you will actually keep, not the best week you can imagine.')}</p>
         <div className="ob-days">
-          {[1, 2, 3, 4, 5, 6, 7].map(n => <button key={n} className={'ob-day' + (p.daysPerWeek === n ? ' on' : '')} onClick={() => set({ daysPerWeek: n })}>{n}</button>)}
+          {[1, 2, 3, 4, 5, 6, 7].map(n => <button key={n} className={'ob-day' + (!p.gymDaysUnknown && p.daysPerWeek === n ? ' on' : '')} onClick={() => set({ daysPerWeek: n, gymDaysUnknown: false })}>{n}</button>)}
         </div>
+        <div className="ob-quick">
+          <button className={'chip' + (p.gymDaysUnknown ? ' on' : '')} onClick={() => set({ gymDaysUnknown: !p.gymDaysUnknown })}>{t('Not sure')}</button>
+        </div>
+        {p.gymDaysUnknown && <div className="ob-note">{t('The Coach then builds an A/B rotation: the sessions take turns on whatever days you make it in, and a missed week changes nothing.')}</div>}
         <div className="ob-sub">{t('Which days suit you? (optional)')}</div>
         <div className="ob-week">
           {[1, 2, 3, 4, 5, 6, 0].map(d => <button key={d} className={'ob-wd' + (p.preferredDays.includes(d) ? ' on' : '')} onClick={() => toggleDay(d)}>{t(DAYN[d]).slice(0, 2)}</button>)}
@@ -225,6 +287,18 @@ export default function CoachIntake() {
         <div className="ob-field"><TextArea rows={2} maxLength={300} value={p.dislikes} onChange={e => set({ dislikes: e.target.value })} placeholder={t('e.g. “I hate lunges”')} /></div>
         <div className="ob-sub" style={{ marginTop: 4 }}>{t('Anything you want the Coach to know')}</div>
         <div className="ob-field"><TextArea rows={3} maxLength={600} value={p.notes} onChange={e => set({ notes: e.target.value })} placeholder={t('e.g. “I want visible arms progress by spring”')} /></div>
+        {p.sport && <>
+          <div className="ob-sub" style={{ marginTop: 4 }}>{t('Competition date (optional)')}</div>
+          <div className="ob-field row" style={{ gap: 8 }}>
+            <input type="date" className="timef" value={p.compDate || ''} onChange={e => set({ compDate: e.target.value || null })} />
+            {p.compDate && <button className="chip" onClick={() => set({ compDate: null })}>{t('Clear')}</button>}
+          </div>
+          <div className="ob-sub" style={{ marginTop: 4 }}>{t('What to lean on (up to three)')}</div>
+          <div className="ob-chips">
+            {PRIORITIES.map(k => <button key={k} className={'chip' + ((p.priorities || []).includes(k) ? ' on' : '')}
+              onClick={() => set({ priorities: ((p.priorities || []).includes(k) ? p.priorities.filter(x => x !== k) : [...(p.priorities || []), k]).slice(-3) })}>{PRIORITY_NAME[k]()}</button>)}
+          </div>
+        </>}
       </>}
     </div>
 

@@ -35,7 +35,9 @@ export const CHANGE_TYPES = [
   'add-routine', 'remove-routine', 'rename-routine',
   'week'
 ];
-const POLICIES = ['off', 'linear', 'greyskull', 'double', 'triple', 'time'];
+const POLICIES = ['off', 'linear', 'greyskull', 'double', 'triple', 'time', 'power', 'carry', 'grip'];
+// The sport-template roles (frontend lib/sport-copy.js ROLE_COPY); anything else is dropped, never carried.
+const ROLES = ['power_lower', 'power_hinge', 'power_upper', 'power_rotation', 'squat', 'unilateral', 'hinge', 'hpull', 'vpull', 'pull_endurance', 'push', 'carry', 'grip_hang', 'grip_iso', 'trunk_anti', 'trunk_lateral', 'trunk_flex', 'neck', 'cond_aerobic', 'cond_intervals', 'mobility'];
 const MODES = ['reps', 'time', 'cardio'];
 const MAX_INC = 50;
 // A prescription, not a world record. Anything past this is a model slip or a hostile answer,
@@ -161,6 +163,9 @@ export function validatePlan(data, ctx = {}) {
       if (e.bodyweight != null) clean.bodyweight = !!e.bodyweight;
       if (perSide) clean.side = true;
       if (isStr(e.sg)) clean.sg = clampStr(e.sg, 20);
+      // A sport-template slot's role and its place in the shorter session (frontend lib/sport-plans.js).
+      if (ROLES.includes(e.role)) clean.role = e.role;
+      if (e.optional === true) clean.optional = true;
       if (isStr(e.why)) clean.why = clampStr(e.why, 400);
       // The same exercise twice in one routine has no honest reading: `reorder` can never be
       // satisfied again (it demands each id once), and every targeted change resolves to
@@ -211,12 +216,21 @@ export function validatePlan(data, ctx = {}) {
     else if (e.weight > cap) e.weight = cap;
   }));
 
+  // A rotation (the answer when the gym days are not known, or asked for): the routines take
+  // turns in order and nothing sits on a weekday, so the week is empty and the day count does
+  // not apply. One to four routines make a loop worth having.
+  const rotation = data.rotation === true;
+  if (rotation && Object.keys(week).length) errors.push('a rotation plan schedules nothing on the week: leave week empty, the routines take turns in their listed order');
+  if (rotation && routines.length > 4) errors.push('a rotation loop is at most four routines');
   // FR-17: honour the number of training days the user asked for.
   const want = ctx.daysPerWeek;
   // An absent week used to slip through: the plan then schedules nothing at all, which is not
   // the number of days anyone asked for either.
-  if (isInt(want, 1, 7) && Object.keys(week).length !== want) {
+  if (!rotation && isInt(want, 1, 7) && Object.keys(week).length !== want) {
     errors.push(`the week schedules ${Object.keys(week).length} days but ${want} were asked for`);
+  }
+  if (!rotation && ctx.gymDaysUnknown === true && !Object.keys(week).length) {
+    errors.push('the gym days are not known: answer with "rotation": true and an empty week, so the routines take turns');
   }
 
   if (errors.length) return fail(errors);
@@ -227,7 +241,7 @@ export function validatePlan(data, ctx = {}) {
       name: clampStr(data.name || 'Coach plan', 40),
       summary: clampStr(data.summary || '', 1200),
       basedOn: clampStr(data.basedOn || '', 400),
-      week, routines, customEx
+      week, routines, customEx, ...(rotation ? { rotation: true } : {})
     }
   };
 }
@@ -352,6 +366,8 @@ export function validateReview(data, plan, ctx = {}) {
           ...(isInt(a.setsMax, 1, 10) ? { setsMax: a.setsMax } : {}),
           ...(a.bodyweight != null ? { bodyweight: !!a.bodyweight } : {}),
           ...(perSide ? { side: true } : {}),
+          ...(ROLES.includes(a.role) ? { role: a.role } : {}),
+          ...(a.optional === true ? { optional: true } : {}),
           ...(isInt(a.position, 0, MAX_EX_PER_ROUTINE) ? { position: a.position } : {})
         };
         break;

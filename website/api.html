@@ -4746,6 +4746,36 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
     <span class="p-type">string</span>
     <span class="p-desc">Injuries and anything to work around.</span>
   </div>
+  <div class="prow">
+    <span class="p-name">sport</span>
+    <span class="p-type">&quot;judo&quot; | &quot;bjj&quot; | &quot;both&quot;</span>
+    <span class="p-desc">The grappling sport the gym plan supports. Absent for a plain gym plan.</span>
+  </div>
+  <div class="prow">
+    <span class="p-name">gi</span>
+    <span class="p-type">&quot;gi&quot; | &quot;nogi&quot; | &quot;both&quot;</span>
+    <span class="p-desc">What the grip work is for. Judo is always <code>gi</code>.</span>
+  </div>
+  <div class="prow">
+    <span class="p-name">matPerWeek</span>
+    <span class="p-type">integer | null <span class="p-hint">(0&ndash;14)</span></span>
+    <span class="p-desc">Mat sessions a week. <code>null</code> is not known or irregular</span>
+  </div>
+  <div class="prow">
+    <span class="p-name">gymDaysUnknown</span>
+    <span class="p-type">boolean</span>
+    <span class="p-desc">The gym days cannot be promised. <code>daysPerWeek</code> is then null and the Coach answers with a rotation plan.</span>
+  </div>
+  <div class="prow">
+    <span class="p-name">compDate</span>
+    <span class="p-type">string | null <span class="p-hint">(date)</span></span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">priorities</span>
+    <span class="p-type">(&quot;grip&quot; | &quot;power&quot; | &quot;pull&quot; | &quot;trunk&quot; | &quot;legs&quot; | &quot;conditioning&quot; | &quot;mobility&quot;)[]</span>
+    <span class="p-desc"></span>
+  </div>
 </div>
   </div>
 </details>

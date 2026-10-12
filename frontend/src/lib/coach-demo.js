@@ -13,6 +13,7 @@
 // replaces at build time.
 
 import { EXIDX, EXDB } from './exercises.js'
+import { DATA_CATEGORIES } from '../../../api/coach/core/categories.js'
 import { modeOf, workoutVolume, workoutAt } from './history.js'
 import { isWarmupRow } from './workout-model.js'
 import { best1RM } from './onerm.js'
@@ -103,8 +104,11 @@ function buildPlan(S, intake) {
       ].filter(e => e.id)
     }
   ]
+  // Gym days not known: the same two routines as a loop, the shape the real Coach is told to
+  // answer with (api/coach/prompts/create.md), so the demo's card shows the rotation path too.
+  const rotation = intake?.gymDaysUnknown === true
   const week = {}
-  days.forEach((d, i) => { week[d] = routines[i % routines.length].id })
+  if (!rotation) days.forEach((d, i) => { week[d] = routines[i % routines.length].id })
   return {
     id: 'demo-plan', kind: 'create', createdAt: Date.now(), expiresAt: Date.now() + 864e5, iteration: 1,
     planHash: planHash(S),
@@ -113,7 +117,7 @@ function buildPlan(S, intake) {
       opengym_plan: 1, name: t('Coach plan'),
       summary: t('A two-day rotation across three sessions a week, built around the equipment you listed. Compounds first, one pull for every press, and enough overlap between the days that nothing goes two weeks without being trained.'),
       basedOn: (S.workouts || []).length ? t('Based on the training already in this demo profile.') : t('No training history yet, so starting conservatively.'),
-      week, routines, customEx: []
+      week, routines, customEx: [], ...(rotation ? { rotation: true } : {})
     }
   }
 }
@@ -209,5 +213,6 @@ export const demoDebrief = (S, workoutId) => {
 export const demoResolve = () => { pending = null; return { ok: true } }
 export const demoDisclosure = () => ({
   provider: 'demo', providerLabel: t('the configured AI provider'),
-  categories: ['plan', 'training', 'bodyweight', 'profile', 'prefs'], version: 1
+  // The shared list (api/coach/core/categories.js), so the demo cannot promise less than leaves.
+  categories: [...DATA_CATEGORIES], version: 1
 })

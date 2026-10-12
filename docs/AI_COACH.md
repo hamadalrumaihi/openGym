@@ -248,7 +248,7 @@ archive.
 
 `api/coach/payload.js` is built as an allowlist: every field is copied in **by name**, nothing
 is spread and nothing is passed through, so a field added to the state blob next year cannot
-ride along by accident. The five categories it can send — the same list the consent screen
+ride along by accident. The categories it can send — the same list the consent screen
 renders from, so the screen cannot drift from the payload — are:
 
 | Category | What it covers |
@@ -259,6 +259,7 @@ renders from, so the screen cannot drift from the payload — are:
 | `profile` | the intake answers you gave the Coach, including any limitations |
 | `cohort` (optional) | only with comparison on and your own opt-in: anonymous medians from the other people sharing — never their data, and never yours to them beyond the same medians |
 | `prefs` | unit, language, effort scale |
+| `sport` | only once a sport is set: judo, BJJ or both, gi or no-gi, lifting experience, mat sessions a week (or unknown), gym days, competition date, week mode, the mat sessions logged in the last two weeks (date, sport, minutes, effort; never the note) and the last week's readiness check-ins |
 
 A review reads a training block, not a training career: the window is capped at **12 weeks or 60
 sessions**. Your profile is identified by a stable pseudonym that is never the user id and never
@@ -283,6 +284,27 @@ that reps and then sets are the progression, and that per-side targets step in t
 The server re-implements three reading rules the frontend owns — `modeOf`, `isBw`, `isPerSide` —
 because the api image has no build step in common with the frontend. `coach-parity.test.js`
 pins them against the originals over a table of configs, so the copies cannot drift silently.
+
+## Judo and BJJ
+
+The intake asks whether the gym is for judo, BJJ or both, gi or no-gi, roughly how many mat
+sessions a week (or "not sure"), whether the gym days can be promised, a competition date and
+what to lean on. The experience question stays about the gym: years on the mat can go with a
+first month under a bar. Adding the sport category moved the consent to version 3, so everyone
+sees the updated list once.
+
+With the gym days "not sure" the Coach has to answer with a **rotation**: `"rotation": true`, an
+empty week, and routines that take turns. The validator refuses a made-up week in that case and
+sends it back for repair; the plan card says "Runs as a rotation" and its switch reads "Use as my
+rotation"; applying it writes the loop and leaves the weekdays alone, and Revert puts the old
+loop back. Plan exercises may carry `role` (what the slot is for) and `optional` (skipped in the
+shorter session); both pass through the validator, the card and `add-exercise`.
+
+The prompts give the model the same rules the templates follow (one shared foundation, one
+accessory budget for both sports, jumps on `power`, carries on `carry`, hangs on `grip`, small
+grip volume), say that an empty mat log is unknown rather than rest, and forbid recovery
+percentages and claims that a gym exercise wins matches. The sport plans themselves need no AI:
+see [docs/dev/SPORT.md](dev/SPORT.md).
 
 ## What comes back, and what it is allowed to do
 

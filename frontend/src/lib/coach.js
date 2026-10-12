@@ -17,13 +17,15 @@ import { modeOf, isBw, isPerSide, cleanupSg } from './history.js'
 import { uid, todayISO, DAYN } from './format.js'
 import { mergePlan } from './plan-share.js'
 import { deleteRoutine } from './routines.js'
+import { saveRotation } from './rotation.js'
 import { POLICIES } from './progression.js'
 import { t, tn } from './i18n.js'
 
 // Bumping this re-prompts everyone: it means what we share, or who we share it with, changed.
 // 2: the training line names the session notes, which the payload carries and version 1 never
-// mentioned.
-export const CONSENT_VERSION = 2
+// mentioned. 3: the sport context — the sport profile, the mat sessions logged and the readiness
+// check-ins — rides along once a sport is set (lib/sport.js), and the consent screen lists it.
+export const CONSENT_VERSION = 3
 
 // Bounds. The whole state has to stay inside the server's 5 MB body limit, and a Coach log
 // that grows forever is exactly the kind of thing that eats it invisibly. Worst case here is
@@ -72,7 +74,8 @@ export const CATEGORY_TEXT = {
   training: () => [t('Your logged training'), t('Sets you logged in the review window: weights, reps, times, effort ratings, how long sessions took, and your session notes.')],
   bodyweight: () => [t('Body weight'), t('Weigh-ins from the same window, and your goal weight if you set one.')],
   profile: () => [t('What you tell the Coach'), t('Your intake answers, including any limitations or injuries you describe.')],
-  prefs: () => [t('A few preferences'), t('Your unit, your language and which effort scale you log.')]
+  prefs: () => [t('A few preferences'), t('Your unit, your language and which effort scale you log.')],
+  sport: () => [t('Your sport context'), t('Judo or BJJ, gi or no-gi, the mat sessions and readiness check-ins you logged, your competition date and week mode.')]
 }
 export const hasConsent = S => !!S?.coach?.consent?.agreedAt && S.coach.consent.version === CONSENT_VERSION
 
@@ -259,7 +262,10 @@ export function pushSnapshot(s, proposalId, label) {
   const c = coachOf(s)
   c.snapshots = [...(c.snapshots || []), {
     at: Date.now(), proposalId: proposalId || null, label: label || '',
-    routines: clone(s.routines || []), week: clone(s.week || {})
+    routines: clone(s.routines || []), week: clone(s.week || {}),
+    // The loop too (lib/rotation.js): a plan applied as a rotation replaces it, and a revert
+    // has to put it back. A snapshot from before these fields leaves the loop alone.
+    rotation: clone(s.rotation ?? null), queue: clone(s.queue ?? null), scheduleMode: s.scheduleMode ?? null,
   }].slice(-SNAPSHOT_MAX)
   trim(s)
 }
@@ -277,6 +283,7 @@ export function revertLast(s) {
   if (!snap) return false
   s.routines = clone(snap.routines)
   s.week = clone(snap.week)
+  if ('rotation' in snap) { s.rotation = clone(snap.rotation); s.queue = clone(snap.queue); s.scheduleMode = snap.scheduleMode }
   // Snapshots taken before this field existed have nothing to put back.
   if (snap.dayPlanRestore) Object.assign(s.dayPlan, snap.dayPlanRestore)
   appendLog(s, { kind: 'revert', at: Date.now(), proposalId: snap.proposalId, summary: t('Reverted the last Coach changes.') })
@@ -303,7 +310,7 @@ export const logEntry = (S, id) => (S?.coach?.log || []).find(e => e.id === id) 
 export function lightBundle(b) {
   if (!b) return null
   return {
-    name: b.name || '', summary: b.summary || '', week: { ...(b.week || {}) },
+    name: b.name || '', summary: b.summary || '', week: { ...(b.week || {}) }, ...(b.rotation ? { rotation: true } : {}),
     routines: (b.routines || []).map(r => ({
       id: r.id, name: r.name, emoji: r.emoji || '', why: r.why || '',
       ex: (r.ex || []).map(e => ({
@@ -382,8 +389,17 @@ export function profileLines(p) {
   if (p.likes) lines.push(t('Likes: {0}', p.likes))
   if (p.dislikes) lines.push(t('Avoid: {0}', p.dislikes))
   if (p.notes) lines.push(p.notes)
+  // The sport context (lib/sport.js), when the intake asked for it.
+  const sport = { judo: 'Judo', bjj: 'BJJ', both: 'Judo + BJJ' }[p.sport]
+  if (sport) lines.push(t(sport) + (p.sport !== 'judo' && p.gi ? ' · ' + t({ gi: 'Gi', nogi: 'No-gi', both: 'Gi and no-gi' }[p.gi] || 'Gi and no-gi') : ''))
+  if (sport && p.matPerWeek != null) lines.push(tn('{0} mat session a week', '{0} mat sessions a week', p.matPerWeek))
+  else if (sport) lines.push(t('Mat schedule: not sure / irregular'))
+  if (p.gymDaysUnknown) lines.push(t('Gym days: not sure, A/B rotation'))
+  if (p.compDate) lines.push(t('Competition: {0}', p.compDate))
+  if (Array.isArray(p.priorities) && p.priorities.length) lines.push(t('Lean on: {0}', p.priorities.map(k => t(PRIORITY_WORD[k] || k)).join(', ')))
   return lines
 }
+const PRIORITY_WORD = { grip: 'Grip', power: 'Explosive power', pull: 'Pulling', trunk: 'Trunk stability', legs: 'Leg strength', conditioning: 'Conditioning', mobility: 'Mobility' }
 
 /* ============================ applying a created plan ============================ */
 
@@ -405,14 +421,22 @@ export function applyCreatedPlan(s, proposal, { schedule } = {}) {
     routines: bundle.routines.map(r => ({ ...r, why: undefined, ex: r.ex.map(e => ({ ...e, why: undefined, name: undefined })) })),
     customEx: (bundle.customEx || []).map(c => { const { url, media, ...rest } = c || {}; return rest })
   }
-  const res = mergePlan(s, stripped, { schedule })
+  // A plan built as a rotation (the Coach's answer when the gym days are not known) schedules
+  // nothing on the week: its routines go into the loop, in order, and the next session is
+  // simply the next one. mergePlan leaves the week alone for it; the loop is written here.
+  const rotation = !!bundle.rotation
+  const res = mergePlan(s, stripped, { schedule: schedule && !rotation })
+  if (schedule && rotation && res.ids?.length) {
+    saveRotation(s, res.ids, '')
+    s.scheduleMode = 'rotation'
+  }
   // Only when the week actually moved — with the switch off the old schedule still stands, and
   // so do the reschedules made against it.
   if (schedule) sweepDayPlan(s, todayISO())
   res.logId = appendLog(s, {
     kind: 'create', at: Date.now(), proposalId: proposal.id,
     summary: proposal.summary || '', routines: res.routines, iteration: proposal.iteration || 1,
-    bundle: lightBundle(bundle), scheduled: !!schedule
+    bundle: lightBundle(bundle), scheduled: !!schedule, ...(rotation ? { rotation: true } : {})
   })
   return res
 }
@@ -440,6 +464,9 @@ const CHANGE_APPLY = {
     // the plan.
     if (a.bodyweight != null) e.bodyweight = !!a.bodyweight
     if (a.side) e.side = true
+    // A sport role and the short-session flag (lib/sport-plans.js), when the Coach set them.
+    if (typeof a.role === 'string' && a.role) e.role = a.role
+    if (a.optional === true) e.optional = true
     const at = Number.isInteger(a.position) ? Math.min(a.position, r.ex.length) : r.ex.length
     r.ex.splice(at, 0, e)
     cleanupSg(r.ex)
@@ -517,7 +544,9 @@ const CHANGE_APPLY = {
         ...(Number.isInteger(e.repsMax) ? { repsMax: e.repsMax } : {}),
         ...(Number.isInteger(e.setsMax) ? { setsMax: e.setsMax } : {}),
         ...(e.bodyweight != null ? { bodyweight: !!e.bodyweight } : {}),
-        ...(e.side ? { side: true } : {})
+        ...(e.side ? { side: true } : {}),
+        ...(typeof e.role === 'string' && e.role ? { role: e.role } : {}),
+        ...(e.optional === true ? { optional: true } : {})
       }))
     })
   },

@@ -139,7 +139,7 @@ describe('CoachIntake — the consent screen', () => {
     expect(Date.parse(mocks.S.coach.consent.agreedAt)).not.toBeNaN()
     expect(mocks.S.coach.profile).toBe(null)          // nothing else written yet
     expect(eyebrow()).toBe('Your goal')
-    expect(all('.ob-dot')).toHaveLength(7)
+    expect(all('.ob-dot')).toHaveLength(9)
   })
 
   it('"Not now" writes nothing at all and goes back to the plan', () => {
@@ -174,7 +174,7 @@ describe('CoachIntake — the consent screen', () => {
   it('lists the built-in categories first, then whatever the server says actually goes', async () => {
     vi.mocked(disclosure).mockResolvedValue({ categories: ['plan', 'prefs'], providerLabel: 'Anthropic', payer: 'you', host: 'api.anthropic.com' })
     mount()
-    expect(all('.ob-consent-row')).toHaveLength(5)                       // CATEGORY_TEXT, before the call lands
+    expect(all('.ob-consent-row')).toHaveLength(6)                       // CATEGORY_TEXT, before the call lands
     await settle()
     expect(all('.ob-consent-row')).toHaveLength(2)
     expect(host.textContent).toContain('Sent straight to api.anthropic.com with your own API key')
@@ -197,7 +197,7 @@ describe('CoachIntake — the consent screen', () => {
     mocks.config = { coach: { enabled: true, providerLabel: 'Claude Agent SDK' } }
     mount(); await settle()
     expect(host.textContent).toContain('Sent to Claude Agent SDK, running on this server')
-    expect(all('.ob-consent-row')).toHaveLength(5)      // and the built-in list stands in
+    expect(all('.ob-consent-row')).toHaveLength(6)      // and the built-in list stands in
 
     act(() => root.unmount())
     mocks.config = { coach: { enabled: true } }
@@ -254,7 +254,7 @@ describe('CoachIntake — the two answers that gate the flow', () => {
     expect(eyebrow()).toBe('Experience')
     tap('.ob-choice', 'New to lifting')
     cont()
-    expect(eyebrow()).toBe('Schedule')
+    expect(eyebrow()).toBe('Sport')
   })
 
   it('names and describes every goal and starting point in the app’s language', async () => {
@@ -310,6 +310,10 @@ describe('CoachIntake — moving around', () => {
   it('Back walks the steps and then leaves for the plan', () => {
     mount(); walkTo('Schedule')
     act(() => host.querySelector('.iconbtn').click())
+    expect(eyebrow()).toBe('Mat training')
+    act(() => host.querySelector('.iconbtn').click())
+    expect(eyebrow()).toBe('Sport')
+    act(() => host.querySelector('.iconbtn').click())
     expect(eyebrow()).toBe('Experience')
     act(() => host.querySelector('.iconbtn').click())
     expect(eyebrow()).toBe('Your goal')
@@ -327,7 +331,7 @@ describe('CoachIntake — moving around', () => {
     expect(mocks.nav).toHaveBeenCalledWith('/coach')
   })
 
-  it('Skip is offered only on the three optional screens, and never on the last one', () => {
+  it('Skip is offered only on the optional screens, and never on the last one', () => {
     mount(); walkTo('Your goal')
     expect(host.querySelector('.ob-skip')).toBe(null)
     walkTo('Equipment')
@@ -341,14 +345,14 @@ describe('CoachIntake — moving around', () => {
     expect(footBtn().textContent).toContain('Build my plan')
   })
 
-  it('the dots count the seven questions and follow the one on screen', () => {
+  it('the dots count the nine questions and follow the one on screen', () => {
     mount(); walkTo('Your goal')
     const at = () => all('.ob-dot').findIndex(d => d.classList.contains('on'))
-    expect(all('.ob-dot')).toHaveLength(7)
+    expect(all('.ob-dot')).toHaveLength(9)
     expect(at()).toBe(0)
     walkTo('Schedule')
-    expect(at()).toBe(2)
-    expect(all('.ob-dot').filter(d => d.classList.contains('done'))).toHaveLength(2)
+    expect(at()).toBe(4)
+    expect(all('.ob-dot').filter(d => d.classList.contains('done'))).toHaveLength(4)
   })
 })
 
@@ -398,6 +402,52 @@ describe('CoachIntake — the answers themselves', () => {
     expect(mocks.S.coach.profile).toMatchObject({
       limitations: 'dodgy left shoulder', likes: 'deadlifts', dislikes: 'lunges', notes: 'arms by spring'
     })
+  })
+})
+
+describe('CoachIntake — the sport answers', () => {
+  it('a sport, gi, mat count, competition date and priorities reach the Coach profile and the sport profile', () => {
+    mount(); walkTo('Sport')
+    tap('.ob-choice', 'BJJ')
+    tap('.ob-chips .chip', 'No-gi')
+    cont()
+    expect(eyebrow()).toBe('Mat training')
+    tap('.ob-day', '4')
+    walkTo('Almost there')
+    act(() => {
+      const date = host.querySelector('input[type="date"]')
+      Object.getOwnPropertyDescriptor(date.constructor.prototype, 'value').set.call(date, '2026-12-05')
+      date.dispatchEvent(new Event('input', { bubbles: true }))
+      date.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+    tap('.ob-chips .chip', 'Grip')
+    tap('.ob-chips .chip', 'Conditioning')
+    cont()
+    expect(mocks.S.coach.profile).toMatchObject({ sport: 'bjj', gi: 'nogi', matPerWeek: 4, compDate: '2026-12-05', priorities: ['grip', 'conditioning'] })
+    // The rest of the app reads the same answers from the sport profile; lifting experience is
+    // the gym answer ("Training regularly" in walkTo), not the mat one.
+    expect(mocks.S.sport).toMatchObject({ kind: 'bjj', gi: 'nogi', matPerWeek: 4, compDate: '2026-12-05', lifting: 'regular', gymDays: 3 })
+  })
+
+  it('"not sure" sends no mat count and no gym-day count, so the Coach answers with a rotation', () => {
+    mount(); walkTo('Sport')
+    tap('.ob-choice', 'Judo')
+    cont()
+    tap('.ob-quick .chip', 'Not sure / irregular')
+    cont()
+    expect(eyebrow()).toBe('Schedule')
+    tap('.ob-quick .chip', 'Not sure')
+    expect(host.textContent).toContain('A/B rotation')
+    walkTo('Almost there'); cont()
+    expect(mocks.S.coach.profile).toMatchObject({ sport: 'judo', gymDaysUnknown: true, daysPerWeek: null, matPerWeek: null })
+    expect(mocks.S.sport).toMatchObject({ kind: 'judo', gi: 'gi', gymDays: null, matPerWeek: null })
+  })
+
+  it('skipping the sport leaves the sport profile alone and sends no sport fields', () => {
+    mount(); walkTo('Almost there'); cont()
+    expect(mocks.S.coach.profile.sport ?? null).toBe(null)
+    expect(mocks.S.coach.profile.matPerWeek).toBe(null)
+    expect(mocks.S.sport).toBeUndefined()
   })
 })
 

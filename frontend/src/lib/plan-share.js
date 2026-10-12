@@ -121,6 +121,11 @@ function cleanEx(e) {
   if (e.warmupRestSec > 0) o.warmupRestSec = e.warmupRestSec   // the ramp's own rest travels with the work rest
   if (e.sg) o.sg = e.sg
   if (e.note) o.note = e.note
+  // A sport template's slot (lib/sport-plans.js): what the exercise is for, whether the short
+  // session skips it, and where a hold or a carry stops getting longer. Written only when set.
+  if (typeof e.role === 'string' && e.role) o.role = e.role
+  if (e.optional === true) o.optional = true
+  if (mode === 'time' && e.secMax > 0) o.secMax = Math.round(e.secMax)
   const warm = cleanWarmupSets(e.warmupSets)
   if (warm) o.warmupSets = warm
   // Drop-sets and rest-pause are part of how the exercise is prescribed, not a logging detail.
@@ -249,9 +254,13 @@ export function parsePlan(raw, destinationUnit = 'kg') {
       const pyramid = normalizePyramid(e.pyramid)
       const pyramidRest = pyramid.length ? normalizePyramidRest(e.pyramidRest, pyramid.length) : []
       const pyramidWeight = pyramid.length ? normalizePyramidWeight(e.pyramidWeight, pyramid.length) : []
-      const { warmupSets, intensifier, restSec, warmupRestSec, pyramid: _pyramid, pyramidRest: _pyramidRest, pyramidWeight: _pyramidWeight, ...passthrough } = e
+      const { warmupSets, intensifier, restSec, warmupRestSec, pyramid: _pyramid, pyramidRest: _pyramidRest, pyramidWeight: _pyramidWeight, role: _role, optional: _optional, secMax: _secMax, ...passthrough } = e
+      // A sport template's slot (lib/sport-plans.js): a short word, a flag and a seconds cap.
+      const role = typeof e.role === 'string' && /^[a-z_]{1,24}$/.test(e.role) ? e.role : null
+      const secMax = Math.round(Number(e.secMax)) || 0
+      const slot = { ...(role ? { role } : {}), ...(e.optional === true ? { optional: true } : {}), ...(secMax > 0 && secMax <= 3600 ? { secMax } : {}) }
       if (!known.has(passthrough.id)) passthrough.id = canonicalExId(passthrough.id)
-      return convertedExercise({ ...passthrough, ...(pyramid.length ? { pyramid } : {}), ...(pyramidRest.length ? { pyramidRest } : {}), ...(pyramidWeight.length ? { pyramidWeight } : {}), ...(warm ? { warmupSets: warm } : {}), ...(intens ? { intensifier: intens } : {}), ...(rest ? { restSec: rest } : {}), ...(warmRest ? { warmupRestSec: warmRest } : {}) }, sourceUnit || destination, destination)
+      return convertedExercise({ ...passthrough, ...slot, ...(pyramid.length ? { pyramid } : {}), ...(pyramidRest.length ? { pyramidRest } : {}), ...(pyramidWeight.length ? { pyramidWeight } : {}), ...(warm ? { warmupSets: warm } : {}), ...(intens ? { intensifier: intens } : {}), ...(rest ? { restSec: rest } : {}), ...(warmRest ? { warmupRestSec: warmRest } : {}) }, sourceUnit || destination, destination)
     })
   }))
   return {
@@ -317,7 +326,8 @@ export function mergePlan(s, bundle, { schedule } = {}) {
       if (ids.length) s.week[d] = ids
     })
   }
-  return { routines: source.routines.length }
+  // The ids the routines were given, in the bundle's order: a loop built from the plan needs them.
+  return { routines: source.routines.length, ids: source.routines.map(r => ridMap[r.id]) }
 }
 
 /* ------------------------------- printable PDF ------------------------------- */

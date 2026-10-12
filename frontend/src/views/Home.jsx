@@ -8,6 +8,7 @@ import { bwSheet, goalSheet, dayOverrideSheet, calendarSheet, startFlow, starter
 import LineChart from '../components/LineChart.jsx'
 import Icon from '../components/Icon.jsx'
 import QueueRow from '../components/QueueRow.jsx'
+import SportCard from '../components/SportCard.jsx'
 import { queueOf, queueView, weekTally, pinState } from '../lib/queue.js'
 import { scheduleModeOf } from '../lib/rotation.js'
 import { useConnectionTrouble } from '../components/SyncBanner.jsx'
@@ -157,6 +158,10 @@ export default function Home() {
         </Button>
       </div>}
     </div>
+
+    {/* The sport side (components/SportCard.jsx): the next session with its length, kit and
+        loads, a shorter way to start it, the readiness check-in, the mat log and the week mode. */}
+    <SportCard />
 
     {/* Jump to the gym check-in cards (QR membership codes). Shown here as a quick tap on
         arrival at the gym; folds away per user via the "Gym check-in" switch in Settings. */}

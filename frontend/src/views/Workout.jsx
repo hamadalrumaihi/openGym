@@ -26,6 +26,8 @@ import WorkoutThumb, { hasWorkoutMedia } from '../components/WorkoutThumb.jsx'
 import { workoutSettingsSheet } from '../components/WorkoutSettingsSheet.jsx'
 import { durationSheet } from '../components/DurationWheel.jsx'
 import { REST_MAX, fmtRest } from '../lib/duration.js'
+import { exercisePurposeSheet } from '../sport-sheets.jsx'
+import { roleLabel } from '../lib/sport-copy.js'
 import { startFlow, exercisePicker, exConfigSheet, exerciseDetailSheet, finishWorkout, exitWorkoutEdit, workoutCompleteSheet, confirmSheet, exerciseNoteSheet, sessionNoteSheet, renameWorkoutSheet, swapActiveWorkoutExercise, barWeightSheet, menuSheet, effortPickerSheet, exerciseHistorySheet, addRoutineToSessionSheet, finishWorkoutSheet } from '../sheets.jsx'
 import { afterScrollRestore, scrollRestorePending } from '../components/Modals.jsx'
 import { effortColor } from '../lib/effort.js'
@@ -262,6 +264,7 @@ function ExerciseBlock({ entryIdx, compact, dense, editing, onToggle, onToggleSi
   // Zero added weight must stay editable: a bodyweight set can become weighted
   // later, or return to zero without losing its load control (issue #460).
   const cfg = { ...(entry.target || {}), id: entry.id }
+  const slotRoutine = entry.rid ? (S.routines || []).find(r => r.id === entry.rid) || null : null
   const bw = !cardio && isBw(cfg)
   // A unilateral exercise logs each side on its own (issue #60): work rows render as an L and an
   // R sub-row, each with its own weight/reps/effort and done tick. Warm-ups stay single.
@@ -407,6 +410,7 @@ function ExerciseBlock({ entryIdx, compact, dense, editing, onToggle, onToggleSi
       { title: t('Look it up'), items: [
         { icon: 'history', label: t('History'), sub: last ? t('Last time') + ' ' + fmtDate(last.d) : undefined, onClick: () => exerciseHistorySheet(entry.id) },
         { icon: 'info', label: t('How to do it'), onClick: () => exerciseDetailSheet(ex) },
+        cfg.role && roleLabel(cfg.role) && { icon: 'lightbulb', label: t('Why this exercise'), sub: roleLabel(cfg.role), onClick: () => exercisePurposeSheet(cfg, slotRoutine, onSwap && !busy ? onSwap : null) },
       ] },
       { title: t('Settings'), items: [
         onProgressionSettings && { icon: 'slider', label: t('Exercise settings'), sub: guidance ? t(guidance.policyLabel) : t('Sets, reps, rest, progression'), onClick: onProgressionSettings },
@@ -665,6 +669,10 @@ function ExerciseBlock({ entryIdx, compact, dense, editing, onToggle, onToggleSi
       {(ex.tg || ex.bp) && <span className="tag">{t(MUSCLE_NAME[ex.tg] || ex.tg || ex.bp)}</span>}
       {ex.eq && <span className="tag">{t(ex.eq)}</span>}
       {best > 0 && <span className="tag nocap">{t('Best:')} {fmtNum(best)} {S.unit}</span>}
+      {/* A sport template's slot says what the exercise is for (lib/sport-plans.js); the chip
+          opens the why, the cues, the effort target and what could stand in for it. */}
+      {cfg.role && roleLabel(cfg.role) && <button type="button" className="tag acc nocap" style={{ cursor: 'pointer' }}
+        onClick={() => exercisePurposeSheet(cfg, slotRoutine, onSwap && !busy ? onSwap : null)}><Icon name="lightbulb" />{roleLabel(cfg.role)}</button>}
     </div>
     {/* Three notes can apply to one exercise and they are not interchangeable, so each keeps its
         own line and its own icon: the plan's instruction (cfg.note, from the routine), the

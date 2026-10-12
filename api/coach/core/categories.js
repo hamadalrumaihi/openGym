@@ -9,5 +9,6 @@ export const DATA_CATEGORIES = Object.freeze([
   'training',    // logged sets, targets, effort ratings, durations, PRs, session notes in the review window
   'bodyweight',  // weigh-ins in the window and your goal weight
   'profile',     // the intake answers you gave the Coach, including any limitations
-  'prefs'        // unit, language, effort scale
+  'prefs',       // unit, language, effort scale
+  'sport'        // the sport profile, the mat sessions and readiness check-ins logged, competition date, week mode (frontend lib/sport.js)
 ]);
