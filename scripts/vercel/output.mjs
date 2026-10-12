@@ -5,6 +5,11 @@
 //
 //   API_ORIGIN=https://api.example.com node scripts/vercel/output.mjs [frontend/dist]
 //
+// The output goes next to the build, frontend/.vercel/output: the Vercel project's Root Directory
+// is frontend/ (frontend/vercel.json), which is also what keeps Vercel from reading the
+// repository's api/ folder as serverless functions. The frontend still imports the Coach core
+// from ../api, so "include files outside the Root Directory" stays on.
+//
 // Why the Build Output API and not a vercel.json rewrite: the API's address is per deployment
 // (a Railway domain), and a vercel.json is read before the build, so it could only carry that
 // address hard-coded in the repository. Here it comes from the API_ORIGIN environment variable
@@ -21,7 +26,7 @@ import { fileURLToPath } from 'node:url'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const dist = path.resolve(process.argv[2] || path.join(ROOT, 'frontend/dist'))
-const out = path.join(ROOT, '.vercel/output')
+const out = path.join(path.dirname(dist), '.vercel/output')
 
 const fail = msg => { console.error('vercel output: ' + msg); process.exit(1) }
 

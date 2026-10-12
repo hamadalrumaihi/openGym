@@ -11,8 +11,8 @@ browser ──https──> cidportal-ody.vercel.app ──(static)──> app sh
                               └── /api/* ──proxy──> Railway service (api/Dockerfile) ── /data volume
 ```
 
-Both halves build from this repository: Vercel from the root (`vercel.json`), Railway from
-`api/` (`api/railway.json`).
+Both halves build from this repository: Vercel from `frontend/` (`frontend/vercel.json`),
+Railway from `api/` (`api/railway.json`).
 
 ## Railway: the API
 
@@ -48,15 +48,19 @@ Project `cid` (prj_jCH56lKXHShTJv9IArloAk3GRZdx), team hamadalrumaihis-projects.
 
 1. Settings → Git: disconnect `hamadalrumaihi/cid`, connect `hamadalrumaihi/openGym`, production
    branch `main`.
-2. Settings → Build and Deployment: Framework Preset "Other", Root Directory empty, no overrides
-   (the commands come from `vercel.json`).
+2. Settings → Build and Deployment: Framework Preset "Other", Root Directory `frontend`, with
+   "Include files outside the root directory in the Build Step" on (the frontend imports the
+   Coach core from `../api`). No command overrides: they come from `frontend/vercel.json`.
+   The root directory matters for a second reason: Vercel turns any `api/` folder at the
+   root directory into serverless functions, and the repository's `api/` is the Railway server.
 3. Settings → Environment Variables: `API_ORIGIN` = the Railway origin from step 5 above, for
    Production and Preview. Remove the CID portal's variables after recording them (below).
 4. Redeploy `main`.
 
-What the build does (`vercel.json`): installs and builds `frontend/`, copies the exercise media
-into the build (`scripts/catalogue/stage-media.mjs`), then `scripts/vercel/output.mjs` writes
-Vercel's Build Output API layout to `.vercel/output` with the routes:
+What the build does (`frontend/vercel.json`): installs and builds `frontend/`, copies the
+exercise media into the build (`scripts/catalogue/stage-media.mjs`), then
+`scripts/vercel/output.mjs` writes Vercel's Build Output API layout to
+`frontend/.vercel/output` with the routes:
 
 - `/api/*` proxied to `API_ORIGIN`. A production build without `API_ORIGIN` fails on purpose. A
   preview without it serves the app with `/api` answering 503, so the app runs device-only.
@@ -135,7 +139,8 @@ Recorded on 2026-10-12, before any change to the Vercel project.
 1. Fastest, no rebuild: Vercel → project `cid` → Deployments → `dpl_CgKNJgFgczoFEYPTLm8XfNtv1DUy`
    → Instant Rollback (or "Promote to Production"). It brings back the exact build with the
    environment it was built with.
-2. Full: reconnect Git to `hamadalrumaihi/cid`, set Framework Preset back to Next.js, restore
+2. Full: reconnect Git to `hamadalrumaihi/cid`, clear Root Directory, set Framework Preset back
+   to Next.js, restore
    the recorded environment variables, and redeploy `main` (or `archive/cid-portal-final-production`).
 3. The openGym API on Railway keeps running independently. Pause it there if needed; its
    volume keeps the openGym data.
