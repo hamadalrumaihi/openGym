@@ -12,17 +12,23 @@ browser ──https──> cidportal-ody.vercel.app ──(static)──> app sh
 ```
 
 Both halves build from this repository: Vercel from `frontend/` (`frontend/vercel.json`),
-Railway from `api/` (`api/railway.json`).
+Railway from `api/` (`api/Dockerfile`, default target).
 
 ## Railway: the API
 
 Create it in its own Railway project (not in Blue Belt Media's).
 
 1. New project → Deploy from GitHub repo → `hamadalrumaihi/openGym`, branch `main`.
-2. Service settings:
+2. Service settings (Settings tab, or `serviceInstanceUpdate` in Railway's API):
    - Root Directory: `/api`
-   - Config-as-code path: `/api/railway.json` (Dockerfile builder, health check
-     `/api/health`, one replica, restart on failure)
+   - Builder: Dockerfile, path `Dockerfile` (found automatically in the root directory)
+   - Watch paths: `/api/**`
+   - Health check path `/api/health`, timeout 120 s
+   - One replica, restart on failure, up to 10 retries
+
+   `api/railway.json` records the same values. Railway no longer accepts a config-as-code
+   path on new services, so set them in the service itself. Railway also refuses any
+   Dockerfile with a `VOLUME` line, which is why `api/Dockerfile` declares none.
 3. Add a volume to the service, mount path `/data`. Every user, passkey, session secret and
    workout lives there. Without it a redeploy starts from an empty server.
 4. Variables:
@@ -42,6 +48,10 @@ The Dockerfile's default target is built, which carries no AI runtime: the Coach
 everything else works without it. The data files are plain JSON written atomically, so the
 service must stay at one replica.
 
+The running instance: Railway project `opengym-api` (workspace "hamadalrumaihi's Projects"),
+service `api`, environment `production`, volume `api-volume` at `/data`, public origin
+`https://api-production-1ff2.up.railway.app`.
+
 ## Vercel: the app
 
 Project `cid` (prj_jCH56lKXHShTJv9IArloAk3GRZdx), team hamadalrumaihis-projects.
@@ -55,6 +65,10 @@ Project `cid` (prj_jCH56lKXHShTJv9IArloAk3GRZdx), team hamadalrumaihis-projects.
    root directory into serverless functions, and the repository's `api/` is the Railway server.
 3. Settings → Environment Variables: `API_ORIGIN` = the Railway origin from step 5 above, for
    Production and Preview. Remove the CID portal's variables after recording them (below).
+   The build command in `frontend/vercel.json` falls back to this fork's Railway origin when
+   the variable is missing, because the Vercel connector used for the cutover could not write
+   project variables. A project variable always takes precedence; set one before pointing the
+   project at a different API, or change the fallback.
 4. Redeploy `main`.
 
 What the build does (`frontend/vercel.json`): installs and builds `frontend/`, copies the
