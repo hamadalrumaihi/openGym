@@ -148,7 +148,20 @@ export function readRun(entry) {
     note: str(entry.note, RUN_NOTE_MAX),
     planRef: str(entry.planRef, 40) || null,
     gps: !!entry.gps,
+    // Where it was recorded, when the source says: the watch's name, and whether a Strava copy
+    // came from Garmin. Garmin's own training numbers (training effect, load, VO2max estimate,
+    // running dynamics) travel in a small block, labelled as Garmin's on the screen.
+    device: str(entry.device, 40) || null,
+    viaGarmin: !!entry.viaGarmin,
+    garmin: garminBlock(entry.garmin),
   }
+}
+const GARMIN_KEYS = ['te', 'ate', 'load', 'vo2', 'vo', 'gct', 'stride', 'vratio']
+function garminBlock(g) {
+  if (!isMap(g)) return null
+  const out = {}
+  for (const k of GARMIN_KEYS) { const n = Number(g[k]); if (Number.isFinite(n) && n >= 0 && n < 100000) out[k] = Math.round(n * 100) / 100 }
+  return Object.keys(out).length ? out : null
 }
 
 const runOrder = (a, b) => {
