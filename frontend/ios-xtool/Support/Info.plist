@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Merged over the Info.plist xtool writes (bundle id, executable, minimum iOS come from
+	     xtool.yml and Package.swift). Only what the shell needs beyond that. -->
+	<key>CFBundleDisplayName</key>
+	<string>openGym</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.4.1</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+	<key>UIViewControllerBasedStatusBarAppearance</key>
+	<true/>
+	<key>UIRequiresFullScreen</key>
+	<true/>
+	<!-- Media a person attaches to their own exercise; the QR scanner falls back to a photo on this shell. -->
+	<key>NSCameraUsageDescription</key>
+	<string>Used to take a photo or video of an exercise you add yourself.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Used when you record a video of an exercise you add yourself.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Used to pick a photo or video for an exercise you add yourself.</string>
+</dict>
+</plist>

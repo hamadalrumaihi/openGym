@@ -1,0 +1,15 @@
+# xtool project file (https://xtool.sh). `xtool dev` builds the SwiftPM package beside this file
+# into an .app, signs it with the Apple ID from `xtool setup`, installs it over USB and launches it.
+version: 1
+# Your own bundle identifier: an App ID is unique across every Apple team, so the Xcode shell's
+# ch.duartesantos.opengym cannot be registered a second time. Pick one under a domain or
+# handle you control. `npm run build:ios-xtool` copies it into capacitor.config.json.
+bundleID: io.github.hamadalrumaihi.opengym
+product: OpenGymShell
+infoPath: Support/Info.plist
+iconPath: Support/icon.png
+# Copied to the root of the .app: the web build and the Capacitor config the bridge reads.
+# Both are written by `npm run build:ios-xtool` (scripts/ios-xtool-prepare.mjs) and gitignored.
+resources:
+  - Resources/public
+  - Resources/capacitor.config.json

@@ -1,0 +1,137 @@
+# iOS builds of the Capacitor app on GitHub's macOS runners, so nobody needs a Mac of their own.
+#
+# Two jobs:
+#   unsigned   — always: the same archive the GitLab build:ios job makes, as an unsigned .ipa
+#                artifact for AltStore / Sideloadly / SideStore users to sign with their Apple ID.
+#   testflight — only when the four App Store Connect secrets exist: a signed archive uploaded to
+#                TestFlight, which then updates the iPhone over the air for 90 days per build.
+#                Needs the paid Apple Developer Program (docs/IOS_WITHOUT_XCODE.md).
+#
+# Runs by hand (Actions → iOS → Run workflow) and on version tags. A public repository gets
+# macOS minutes free; a private one pays ten Linux minutes per macOS minute.
+name: iOS
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  unsigned:
+    name: Unsigned archive
+    runs-on: macos-15
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install and build the web app for the mobile shell
+        run: |
+          npm ci
+          # `cap sync` runs `pod install` for ios/ on macOS.
+          npm run build:mobile
+      - name: Archive without signing
+        run: |
+          set -eu
+          VER="$(node -p "require('./package.json').version")"
+          BUILD="$(sed -n 's/^ *versionCode \([0-9]*\).*/\1/p' android/app/build.gradle | sed -n 1p)"
+          [ -n "$BUILD" ] || { echo "could not read versionCode from android/app/build.gradle" >&2; exit 1; }
+          cd ios/App
+          xcodebuild -workspace App.xcworkspace -scheme App -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$PWD/build/App.xcarchive" \
+            MARKETING_VERSION="$VER" CURRENT_PROJECT_VERSION="$BUILD" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            archive | tail -40
+          # An .ipa is a zip with the .app under Payload/.
+          rm -rf Payload && mkdir Payload
+          cp -R build/App.xcarchive/Products/Applications/App.app Payload/
+          zip -qr "$GITHUB_WORKSPACE/openGym-$VER-unsigned.ipa" Payload
+          cd "$GITHUB_WORKSPACE"
+          shasum -a 256 "openGym-$VER-unsigned.ipa" | tee "openGym-$VER-unsigned.ipa.sha256"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openGym-ios-unsigned
+          path: |
+            openGym-*-unsigned.ipa
+            openGym-*-unsigned.ipa.sha256
+          retention-days: 30
+
+  testflight:
+    name: Signed archive → TestFlight
+    runs-on: macos-15
+    timeout-minutes: 50
+    # The job exists only once the secrets do; a fork without them sees it skipped, not failed.
+    if: ${{ vars.IOS_TESTFLIGHT == 'true' }}
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      # From App Store Connect → Users and Access → Integrations → App Store Connect API
+      # (Team key, App Manager role). The .p8 is stored base64-encoded.
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install and build the web app for the mobile shell
+        run: |
+          npm ci
+          npm run build:mobile
+      - name: App Store Connect API key
+        run: |
+          set -eu
+          mkdir -p ~/.private_keys
+          echo "$ASC_KEY_P8_BASE64" | base64 --decode > ~/.private_keys/AuthKey_$ASC_KEY_ID.p8
+          chmod 600 ~/.private_keys/AuthKey_$ASC_KEY_ID.p8
+      - name: Archive with cloud signing
+        # -allowProvisioningUpdates lets xcodebuild create the certificate and profile through
+        # the API key, so no certificate is ever exported from a Mac.
+        run: |
+          set -eu
+          VER="$(node -p "require('./package.json').version")"
+          BUILD="$(sed -n 's/^ *versionCode \([0-9]*\).*/\1/p' android/app/build.gradle | sed -n 1p)"
+          cd ios/App
+          xcodebuild -workspace App.xcworkspace -scheme App -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$PWD/build/App.xcarchive" \
+            MARKETING_VERSION="$VER" CURRENT_PROJECT_VERSION="$BUILD.${{ github.run_number }}" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" CODE_SIGN_STYLE=Automatic \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/.private_keys/AuthKey_$ASC_KEY_ID.p8 \
+            -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            archive | tail -40
+          cat > ExportOptions.plist <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>$APPLE_TEAM_ID</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>uploadSymbols</key><true/>
+          </dict></plist>
+          EOF
+          xcodebuild -exportArchive -archivePath "$PWD/build/App.xcarchive" \
+            -exportOptionsPlist ExportOptions.plist -exportPath "$PWD/build/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/.private_keys/AuthKey_$ASC_KEY_ID.p8 \
+            -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" | tail -20
+      - name: Forget the key
+        if: always()
+        run: rm -rf ~/.private_keys
