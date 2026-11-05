@@ -638,6 +638,39 @@ Push services like a contact address for whoever runs the server, in case they e
 you about your pushes. openGym sends your `ORIGIN` by default; set `VAPID_SUBJECT=mailto:you@example.com`
 in `.env` if you would rather they had an inbox.
 
+### Garmin and Strava (`STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET`, `INTEGRATIONS_POLL_MIN`, `STRAVA_WEBHOOK_VERIFY_TOKEN`)
+
+The running side ([docs/RUNNING.md](RUNNING.md)) pulls a person's own runs from Garmin Connect and
+Strava, read-only. Garmin needs nothing from you: each person pastes their own Personal API key
+in Settings. Strava needs an API application of your own (<https://www.strava.com/settings/api>;
+Strava requires a Strava subscription to create one) whose *Authorization Callback Domain* is
+this instance's hostname:
+
+```
+STRAVA_CLIENT_ID=12345
+STRAVA_CLIENT_SECRET=your-client-secret
+```
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET` | unset | Your Strava API application. Unset, the Strava rows say the instance has no Strava. |
+| `INTEGRATIONS_POLL_MIN` | `30` | Minutes between automatic pulls for connected people; `0` leaves only *Sync now*. |
+| `STRAVA_WEBHOOK_VERIFY_TOKEN` | unset | Set it, then create Strava's webhook subscription once (below) and new activities arrive within a minute instead of at the next pull. |
+
+Tokens and keys live in `data/integrations-<uid>.json`, encrypted with the instance's `secret`,
+mode 0600, and are deleted when the person disconnects. They are never in the state file, a
+backup or an export. Back them up with the rest of `data/`; restored without `secret` they are
+unreadable and the person reconnects.
+
+To create the webhook subscription (needs the instance reachable from the internet):
+
+```
+curl -X POST https://www.strava.com/api/v3/push_subscriptions \
+  -F client_id=$STRAVA_CLIENT_ID -F client_secret=$STRAVA_CLIENT_SECRET \
+  -F callback_url=https://your.host/api/integrations/strava/webhook \
+  -F verify_token=$STRAVA_WEBHOOK_VERIFY_TOKEN
+```
+
 ### Push endpoints on private addresses (`ALLOWED_PRIVATE_IPS`)
 
 The api container resolves push service domains to the IPs. Private IPs are banned by default.

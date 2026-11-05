@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased: Running coach, Road to 10K, Garmin and Strava
+
+- **Road to 10K**: a run/walk programme (5K, 10K, half marathon) three days a week with a long
+  session, an easier fourth week, a taper, repeat / reduce / skip a week, busy and recovery weeks,
+  a baseline read from recorded runs, two optional running-strength sessions placed away from the
+  long run. Home card, Running screen, Stats card, Settings → Running.
+- **The coach**: plain rules over what was planned, run and reported (pain first, the check-in
+  and mat load, missed and demanding weeks); substantial changes wait for Approve.
+- **Garmin Connect**: the Personal API (read-only, each person's own key, stored encrypted on
+  the server) pulls runs with heart rate, cadence, elevation, zones and Garmin's training
+  numbers; FIT activity files (and Garmin Connect's zipped exports) import directly; a planned
+  session exports as a FIT workout for the watch's My Workouts.
+- **Strava**: OAuth connection, automatic and on-demand pulls with laps, token refresh, rate
+  limits honoured, duplicates against Garmin kept once, disconnect with deletion; nothing is
+  written to Strava.
+- Run-day reminders on the web push tick and the phone's notifications.
+
 ## Unreleased
 
 **Gym plans for judo and BJJ.** Set a sport profile (judo, BJJ or both, gi or no-gi, your gym

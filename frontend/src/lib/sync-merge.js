@@ -85,7 +85,7 @@ const list = v => (Array.isArray(v) ? v : [])
 // The maps whose every entry carries its own edit time (mergeStampedMap). dayNotes is a day's
 // note on a day off (lib/day-notes.js), one entry per date; matLog a mat session per id and
 // readiness a check-in per date (lib/sport.js).
-export const STAMPED_MAPS = ['balanceOverrides', 'loadKind', 'plates', 'dbLoad', 'dumbbells', 'dayNotes', 'matLog', 'readiness']
+export const STAMPED_MAPS = ['balanceOverrides', 'loadKind', 'plates', 'dbLoad', 'dumbbells', 'dayNotes', 'matLog', 'readiness', 'runLog', 'runSessions']
 
 /** The copy with the later `_ts`; on a tie the first argument (callers pass local first). */
 export const newerOf = (a, b) => ((b?._ts || 0) > (a?._ts || 0) ? b : a)
@@ -614,7 +614,7 @@ function applyDeletions(S, deleted) {
 const OWN_MERGE = new Set([
   '_ts', '_rev', '_wid', '_wids', '_unstamped', '_prior', 'active', 'unit', 'unitSet', 'resetAt', 'resetIds', 'deleted', 'edited', 'undone', 'routineOrder',
   'workouts', 'routines', 'customEx', 'equipProfiles', 'gymCards', 'bodyweight', 'measurements', 'favEx',
-  'exWeights', 'balanceOverrides', 'loadKind', 'plates', 'dbLoad', 'dumbbells', 'dayNotes', 'matLog', 'readiness',
+  'exWeights', 'balanceOverrides', 'loadKind', 'plates', 'dbLoad', 'dumbbells', 'dayNotes', 'matLog', 'readiness', 'runLog', 'runSessions',
 ])
 // Stamped per key instead of whole: one day of the plan, one exercise's note or bar.
 const PER_KEY = new Set(['week', 'dayPlan', 'exNotes', 'barWeights'])

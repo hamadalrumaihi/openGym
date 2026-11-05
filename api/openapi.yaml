@@ -157,6 +157,13 @@ tags:
     description: >-
       AI Coach: plans, reviews and debriefs. Every route here answers 503 unless the
       instance has the Coach switched on and a provider connected.
+  - name: integrations
+    description: >-
+      The signed-in person's own Garmin Connect (Personal API) and Strava connections:
+      read-only pulls of their recent runs into a pending list the app turns into its run
+      log. Tokens are stored encrypted in their own file, never in the state. Nothing is
+      ever written to Garmin or Strava. The Strava routes answer 503 while the instance has
+      no `STRAVA_CLIENT_ID` / `STRAVA_CLIENT_SECRET`.
 
 security:
   - cookieAuth: []
@@ -2953,6 +2960,244 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
 
+  /api/integrations:
+    get:
+      tags: [integrations]
+      operationId: integrationsStatus
+      summary: Garmin and Strava connection status
+      description: |
+        What this instance has configured and what the signed-in person has connected: for
+        each provider whether it is connected, when it last synced, its last error and the
+        pause a rate limit imposed; plus how many fetched activities are waiting for the app.
+        Never the token material.
+      responses:
+        '200':
+          description: Status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  strava: { $ref: '#/components/schemas/IntegrationStatus' }
+                  garmin: { $ref: '#/components/schemas/IntegrationStatus' }
+                  pending: { type: integer, description: Fetched activities not yet collected by the app }
+                  poll: { type: integer, description: Minutes between automatic pulls (0 = off) }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/integrations/strava/connect:
+    post:
+      tags: [integrations]
+      operationId: stravaConnect
+      summary: Start connecting Strava
+      description: |
+        Mints a one-time `state` bound to this account (ten minutes) and returns the Strava
+        authorisation URL to send the browser to, asking for `read,activity:read_all`.
+      responses:
+        '200':
+          description: Where to send the browser
+          content:
+            application/json:
+              schema: { type: object, required: [url], properties: { url: { type: string } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '503': { description: Strava is not configured on this instance, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /api/integrations/strava/callback:
+    get:
+      tags: [integrations]
+      operationId: stravaCallback
+      summary: Strava sends the browser back here
+      description: |
+        The OAuth redirect target. Checks the `state` against the session that minted it,
+        requires the `activity:read` scope in the grant, exchanges the code for tokens,
+        stores them encrypted, starts a first pull in the background and redirects into the
+        app (`/#/settings/integrations?strava=connected`, or `?strava=<reason>` on failure:
+        `signin`, `state`, `denied`, `scope`, `http`, `network`).
+      parameters:
+        - { name: code, in: query, schema: { type: string } }
+        - { name: scope, in: query, schema: { type: string } }
+        - { name: state, in: query, schema: { type: string } }
+        - { name: error, in: query, schema: { type: string } }
+      responses:
+        '302': { description: Redirect into the app }
+  /api/integrations/strava/sync:
+    post:
+      tags: [integrations]
+      operationId: stravaSync
+      summary: Pull new Strava activities now
+      description: |
+        Fetches activities since the last sync (two days of overlap), laps for the newest
+        runs within the rate headroom, and adds them to the pending list. `days` asks for
+        history instead (up to 400 days). Rate limits are read from Strava's headers; a 429
+        pauses the provider until the next quarter hour.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, properties: { days: { type: integer, minimum: 0, maximum: 400 } } }
+      responses:
+        '200':
+          description: What was fetched
+          content:
+            application/json:
+              schema: { type: object, properties: { ok: { type: boolean }, fetched: { type: integer }, complete: { type: boolean }, pending: { type: integer } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { description: Strava's rate limit was reached, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '502': { description: Strava could not be reached or answered an error, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '503': { description: Strava is not configured on this instance, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /api/integrations/strava/disconnect:
+    post:
+      tags: [integrations]
+      operationId: stravaDisconnect
+      summary: Disconnect Strava
+      description: |
+        Revokes the token at Strava (best effort), deletes the stored tokens and every
+        Strava activity still waiting in the pending list. `deleteRuns` is echoed back so the
+        app knows to remove the Strava-sourced runs from its own log as well.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, properties: { deleteRuns: { type: boolean } } }
+      responses:
+        '200': { description: Disconnected, content: { application/json: { schema: { type: object, properties: { ok: { type: boolean }, deleteRuns: { type: boolean } } } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/integrations/strava/webhook:
+    get:
+      tags: [integrations]
+      operationId: stravaWebhookVerify
+      summary: Strava webhook subscription check
+      description: |
+        Strava's validation request when the operator creates the subscription: echoes
+        `hub.challenge` when `hub.verify_token` matches `STRAVA_WEBHOOK_VERIFY_TOKEN`. A 404
+        while that variable is unset.
+      security: []
+      parameters:
+        - { name: hub.mode, in: query, schema: { type: string } }
+        - { name: hub.verify_token, in: query, schema: { type: string } }
+        - { name: hub.challenge, in: query, schema: { type: string } }
+      responses:
+        '200': { description: The challenge echoed, content: { application/json: { schema: { type: object, properties: { hub.challenge: { type: string } } } } } }
+        '403': { description: Verify token mismatch, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { description: Webhooks are not configured, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    post:
+      tags: [integrations]
+      operationId: stravaWebhookEvent
+      summary: Strava webhook event
+      description: |
+        Answers 200 at once (Strava allows two seconds) and then acts: an activity event
+        pulls that athlete's new activities into their pending list; an athlete
+        deauthorisation deletes the connection. Events for athletes nobody connected are
+        ignored.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200': { description: Acknowledged, content: { application/json: { schema: { $ref: '#/components/schemas/Ok' } } } }
+        '404': { description: Webhooks are not configured, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /api/integrations/garmin/connect:
+    post:
+      tags: [integrations]
+      operationId: garminConnect
+      summary: Connect a Garmin Connect Personal API key
+      description: |
+        Takes the Personal API key the person created in Garmin Connect, checks it by buying
+        one 24-hour access token, stores it encrypted and starts a first pull in the background.
+        The key is read-only by construction (Garmin's Personal API is pull-only); it never
+        reaches the state or a backup.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [key], properties: { key: { type: string }, keyExpires: { type: string, format: date, description: When Garmin will expire the key, if the person noted it } } }
+      responses:
+        '200': { description: Connected, content: { application/json: { schema: { $ref: '#/components/schemas/Ok' } } } }
+        '400': { description: No key, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '401': { description: Garmin refused the key (or not signed in), content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '502': { description: Garmin could not be reached, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /api/integrations/garmin/sync:
+    post:
+      tags: [integrations]
+      operationId: garminSync
+      summary: Pull new Garmin activities now
+      description: |
+        Running and walking activities since the last sync (two days of overlap), or `days`
+        of history (up to 400), trimmed of every coordinate, into the pending list; refreshes
+        the heart-rate zones Garmin Connect holds once a week.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, properties: { days: { type: integer, minimum: 0, maximum: 400 } } }
+      responses:
+        '200':
+          description: What was fetched
+          content:
+            application/json:
+              schema: { type: object, properties: { ok: { type: boolean }, fetched: { type: integer }, complete: { type: boolean }, pending: { type: integer } } }
+        '401': { description: Garmin refused the key or token (it may have expired), content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '429': { description: Garmin's rate limit was reached, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '502': { description: Garmin could not be reached, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /api/integrations/garmin/disconnect:
+    post:
+      tags: [integrations]
+      operationId: garminDisconnect
+      summary: Disconnect Garmin
+      description: Deletes the stored key and every Garmin activity still waiting; `deleteRuns` is echoed back.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object, properties: { deleteRuns: { type: boolean } } }
+      responses:
+        '200': { description: Disconnected, content: { application/json: { schema: { type: object, properties: { ok: { type: boolean }, deleteRuns: { type: boolean } } } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/integrations/activities:
+    get:
+      tags: [integrations]
+      operationId: integrationsActivities
+      summary: Fetched activities waiting for the app
+      description: |
+        The pending list: each entry's source, id, fetch time, the provider's summary with
+        only the documented fields kept (no coordinates, maps or segments) and, for Strava
+        runs, the laps. The app turns them into runs (frontend `lib/run-import.js`) and then
+        acknowledges them. Entries uncollected for seven days are dropped. Also the heart-rate
+        zones Garmin Connect holds, when Garmin is connected.
+      responses:
+        '200':
+          description: The pending activities
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  activities:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        src: { type: string, enum: [strava, garmin] }
+                        id: { type: string }
+                        fetchedAt: { type: integer }
+                        data: { type: object }
+                        laps: { type: array, items: { type: object } }
+                  garminZones: { type: object, nullable: true }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/integrations/activities/ack:
+    post:
+      tags: [integrations]
+      operationId: integrationsAck
+      summary: Acknowledge collected activities
+      description: Removes the named entries (`src:id`) from the pending list once the app has stored them.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [keys], properties: { keys: { type: array, items: { type: string }, maxItems: 1000 } } }
+      responses:
+        '200': { description: Acknowledged, content: { application/json: { schema: { type: object, properties: { ok: { type: boolean }, pending: { type: integer } } } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
 components:
   securitySchemes:
     cookieAuth:
@@ -3117,6 +3362,21 @@ components:
           type: integer
           description: 429 only. The same number of seconds as the Retry-After header.
 
+    IntegrationStatus:
+      type: object
+      description: One provider's connection, without its secret
+      properties:
+        configured: { type: boolean, description: The instance can offer this provider }
+        connected: { type: boolean }
+        connectedAt: { type: integer }
+        lastSync: { type: integer, nullable: true }
+        lastFetched: { type: integer }
+        error: { type: string, nullable: true, description: The last failure's code (unauthorized, rate-limit, network, http, unreadable) }
+        errorAt: { type: integer }
+        retryAt: { type: integer, nullable: true, description: When a rate-limit pause ends }
+        athleteId: { type: integer, description: Strava only }
+        keyExpires: { type: string, format: date, description: Garmin only, as the person noted it }
+        zones: { type: object, nullable: true, description: Garmin only, the heart-rate zones Garmin Connect holds }
     Ok:
       type: object
       properties:

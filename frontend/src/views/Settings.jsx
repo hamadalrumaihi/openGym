@@ -37,6 +37,8 @@ import { REST_MAX, REST_PAUSE_MIN, REST_PAUSE_MAX, fmtRest, fmtDuration } from '
 import { starterPlanSheet, confirmSheet, importFromApp, importFromHevy, equipmentProfileSheet, plateInventorySheet, dumbbellInventorySheet, menuSheet } from '../sheets.jsx'
 import { sportSetupSheet, sportPlanSheet } from '../sport-sheets.jsx'
 import { sportOf } from '../lib/sport.js'
+import { runningOf, GOAL_LABEL } from '../lib/running.js'
+import RunningSettingsPage from '../components/IntegrationsSettings.jsx'
 import { SPORT_NAME, GI_NAME } from '../lib/sport-copy.js'
 import Icon from '../components/Icon.jsx'
 import { durationSheet } from '../components/DurationWheel.jsx'
@@ -401,6 +403,7 @@ export default function Settings({ page = null, find = null, via = null }) {
     profiles: (S.equipProfiles || []).length > 0, nameLang: EXERCISE_NAME_LANGS.includes(baseLang(lang)),
     pushOK: !MOBILE && pushSupported(), reminderOn: !!S.reminder?.on, nudge: !!S.reminder?.nudge,
     autoBackup: !!S.autoBackup, synced: !!sync, installTip: !MOBILE && !standalone(), androidWeb: IS_ANDROID,
+    runningOn: !!runningOf(S),
   }
   const mode = scheduleModeOf(S)
   const layout = ['list', 'compact', 'focus'].includes(S.workoutView) ? S.workoutView : 'cards'
@@ -417,6 +420,7 @@ export default function Settings({ page = null, find = null, via = null }) {
     equipment: () => (S.equipFilterOn && activeProfile ? activeProfile.name : t('Everything')),
     look: () => themeLabel + ' · ' + accentLabel(S),
     coach: () => (coachLocal?.mode === 'server' ? t('Your server') : coachLocal?.mode === 'byok' ? t('Your API key') : t('Off')),
+    running: () => (runningOf(S) ? GOAL_LABEL[runningOf(S).goal] : t('Off')),
     data: () => '',
     about: () => 'v' + __APP_VERSION__,
   }
@@ -812,6 +816,8 @@ export default function Settings({ page = null, find = null, via = null }) {
       <input ref={importRef} type="file" accept=".csv,.xml,text/csv,text/xml" style={{ display: 'none' }}
         onChange={ev => { const f = ev.target.files[0]; if (f) importFromApp(f); ev.target.value = '' }} />
     </>,
+
+    running: () => <RunningSettingsPage />,
 
     about: () => <>
       {/* Updates. On Android the row is always there: it checks on demand and installs when a

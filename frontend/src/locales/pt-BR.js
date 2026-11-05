@@ -1711,6 +1711,27 @@ export const PT_BR_OVERRIDES = {
   '{0} muscle groups still recovering': '{0} grupos musculares ainda em recuperação',
   '{0} mat session a week': '{0} treino no tatame por semana',
   '{0} mat sessions a week': '{0} treinos no tatame por semana',
+  // --- running ---
+  'Race in {0} day': 'Prova em {0} dia',
+  'Race in {0} days': 'Prova em {0} dias',
+  '{0} activity last time': '{0} atividade da última vez',
+  '{0} activities last time': '{0} atividades da última vez',
+  '{0} file could not be read': '{0} arquivo não pôde ser lido',
+  '{0} files could not be read': '{0} arquivos não puderam ser lidos',
+  '{0} gym session': '{0} sessão de academia',
+  '{0} gym sessions': '{0} sessões de academia',
+  '{0} mat session': '{0} sessão de tatame',
+  '{0} mat sessions': '{0} sessões de tatame',
+  '{0} run imported': '{0} corrida importada',
+  '{0} runs imported': '{0} corridas importadas',
+  '{0} run': '{0} corrida',
+  '{0} runs': '{0} corridas',
+  'Running': 'Corrida',
+  'Road to 10K': 'Rumo aos 10K',
+  'Run day reminders': 'Lembretes dos dias de corrida',
+  'Import a FIT file': 'Importar um arquivo FIT',
+  'Garmin Connect': 'Garmin Connect',
+  'Strava': 'Strava',
 }
 
 export default { ...pt, ...PT_BR_OVERRIDES }

@@ -246,6 +246,11 @@ export const DEF = {
   // readiness check-in ({ [iso]: { energy, soreness, sleep, _ts } }), each entry stamped on its
   // own like a day note, so two devices' entries both survive a sync (lib/sync-merge.js).
   matLog: {}, readiness: {},
+  // The running side (lib/running.js): the goal, the days, the plan skeleton and the week mode,
+  // one object stamped as a whole; null until Road to 10K is set up. Runs that were done (imported
+  // from a watch through Garmin or Strava, a FIT file, or typed in) and how each planned session
+  // went, both stamped per entry like the mat log. Never a GPS coordinate.
+  running: null, runLog: {}, runSessions: {},
 }
 const clone = o => JSON.parse(JSON.stringify(o))
 
