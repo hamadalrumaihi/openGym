@@ -2550,4 +2550,11 @@ export default {
   '{0} muscle groups still recovering': '{0} kas grubu hâlâ toparlanıyor',
   '{0} mat session a week': 'Haftada {0} tatami seansı',
   '{0} mat sessions a week': 'Haftada {0} tatami seansı',
+  // --- running ---
+  'Running': 'Koşu',
+  'Road to 10K': '10K Yolu',
+  'Run day reminders': 'Koşu günü hatırlatıcıları',
+  'Import a FIT file': 'FIT dosyası içe aktar',
+  'Garmin Connect': 'Garmin Connect',
+  'Strava': 'Strava',
 }

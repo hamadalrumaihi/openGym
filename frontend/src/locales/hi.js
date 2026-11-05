@@ -2550,4 +2550,11 @@ export default {
   '{0} muscle groups still recovering': '{0} मांसपेशी समूह अभी रिकवर हो रहे हैं',
   '{0} mat session a week': 'हफ़्ते में {0} मैट सेशन',
   '{0} mat sessions a week': 'हफ़्ते में {0} मैट सेशन',
+  // --- running ---
+  'Running': 'दौड़',
+  'Road to 10K': '10K की राह',
+  'Run day reminders': 'दौड़ के दिन के रिमाइंडर',
+  'Import a FIT file': 'FIT फ़ाइल आयात करें',
+  'Garmin Connect': 'Garmin Connect',
+  'Strava': 'Strava',
 }

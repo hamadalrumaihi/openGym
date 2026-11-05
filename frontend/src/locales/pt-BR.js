@@ -1711,6 +1711,13 @@ export const PT_BR_OVERRIDES = {
   '{0} muscle groups still recovering': '{0} grupos musculares ainda em recuperação',
   '{0} mat session a week': '{0} treino no tatame por semana',
   '{0} mat sessions a week': '{0} treinos no tatame por semana',
+  // --- running ---
+  'Running': 'Corrida',
+  'Road to 10K': 'Rumo aos 10K',
+  'Run day reminders': 'Lembretes dos dias de corrida',
+  'Import a FIT file': 'Importar um arquivo FIT',
+  'Garmin Connect': 'Garmin Connect',
+  'Strava': 'Strava',
 }
 
 export default { ...pt, ...PT_BR_OVERRIDES }

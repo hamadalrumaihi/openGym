@@ -2553,4 +2553,11 @@ export default {
   '{0} muscle groups still recovering': '{0} izomcsoport még regenerálódik',
   '{0} mat session a week': 'Heti {0} tatamiedzés',
   '{0} mat sessions a week': 'Heti {0} tatamiedzés',
+  // --- running ---
+  'Running': 'Futás',
+  'Road to 10K': 'Út a 10 km-hez',
+  'Run day reminders': 'Futónapi emlékeztetők',
+  'Import a FIT file': 'FIT-fájl importálása',
+  'Garmin Connect': 'Garmin Connect',
+  'Strava': 'Strava',
 }

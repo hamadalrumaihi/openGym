@@ -2550,4 +2550,11 @@ export default {
   '{0} muscle groups still recovering': { one: '{0} grupa mięśni wciąż się regeneruje', few: '{0} grupy mięśni wciąż się regenerują', many: '{0} grup mięśni wciąż się regeneruje', other: '{0} grupy mięśni wciąż się regeneruje' },
   '{0} mat session a week': '{0} trening na macie w tygodniu',
   '{0} mat sessions a week': { one: '{0} trening na macie w tygodniu', few: '{0} treningi na macie w tygodniu', many: '{0} treningów na macie w tygodniu', other: '{0} treningu na macie w tygodniu' },
+  // --- running ---
+  'Running': 'Bieganie',
+  'Road to 10K': 'Droga do 10 km',
+  'Run day reminders': 'Przypomnienia o dniach biegowych',
+  'Import a FIT file': 'Importuj plik FIT',
+  'Garmin Connect': 'Garmin Connect',
+  'Strava': 'Strava',
 }

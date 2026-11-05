@@ -2550,4 +2550,11 @@ export default {
   '{0} muscle groups still recovering': '회복 중인 근육군 {0}개',
   '{0} mat session a week': '주 {0}회 매트 훈련',
   '{0} mat sessions a week': '주 {0}회 매트 훈련',
+  // --- running ---
+  'Running': '러닝',
+  'Road to 10K': '10K 로드',
+  'Run day reminders': '러닝 날 알림',
+  'Import a FIT file': 'FIT 파일 가져오기',
+  'Garmin Connect': 'Garmin Connect',
+  'Strava': 'Strava',
 }

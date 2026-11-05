@@ -2561,4 +2561,11 @@ export default {
   '{0} muscle groups still recovering': 'กล้ามเนื้อ {0} กลุ่มยังฟื้นตัวอยู่',
   '{0} mat session a week': 'ซ้อมบนเบาะสัปดาห์ละ {0} ครั้ง',
   '{0} mat sessions a week': 'ซ้อมบนเบาะสัปดาห์ละ {0} ครั้ง',
+  // --- running ---
+  'Running': 'การวิ่ง',
+  'Road to 10K': 'เส้นทางสู่ 10K',
+  'Run day reminders': 'การแจ้งเตือนวันวิ่ง',
+  'Import a FIT file': 'นำเข้าไฟล์ FIT',
+  'Garmin Connect': 'Garmin Connect',
+  'Strava': 'Strava',
 }

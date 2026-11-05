@@ -2570,4 +2570,11 @@ export default {
   '{0} muscle groups still recovering': '{0} Muskelgruppen erholen sich noch',
   '{0} mat session a week': '{0} Mattentraining pro Woche',
   '{0} mat sessions a week': '{0} Mattentrainings pro Woche',
+  // --- running ---
+  'Running': 'Laufen',
+  'Road to 10K': 'Weg zu 10 km',
+  'Run day reminders': 'Erinnerungen an Lauftage',
+  'Import a FIT file': 'FIT-Datei importieren',
+  'Garmin Connect': 'Garmin Connect',
+  'Strava': 'Strava',
 }

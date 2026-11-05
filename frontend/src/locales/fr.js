@@ -2550,4 +2550,11 @@ export default {
   '{0} muscle groups still recovering': '{0} groupes musculaires encore en récupération',
   '{0} mat session a week': '{0} séance de tatami par semaine',
   '{0} mat sessions a week': '{0} séances de tatami par semaine',
+  // --- running ---
+  'Running': 'Course à pied',
+  'Road to 10K': 'Objectif 10 km',
+  'Run day reminders': 'Rappels des jours de course',
+  'Import a FIT file': 'Importer un fichier FIT',
+  'Garmin Connect': 'Garmin Connect',
+  'Strava': 'Strava',
 }

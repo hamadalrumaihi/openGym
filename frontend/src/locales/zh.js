@@ -2550,4 +2550,11 @@ export default {
   '{0} muscle groups still recovering': '{0} 个肌群仍在恢复',
   '{0} mat session a week': '每周 {0} 次垫上训练',
   '{0} mat sessions a week': '每周 {0} 次垫上训练',
+  // --- running ---
+  'Running': '跑步',
+  'Road to 10K': '迈向10公里',
+  'Run day reminders': '跑步日提醒',
+  'Import a FIT file': '导入 FIT 文件',
+  'Garmin Connect': 'Garmin Connect',
+  'Strava': 'Strava',
 }

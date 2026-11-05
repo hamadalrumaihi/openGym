@@ -2605,4 +2605,11 @@ export default {
   '{0} muscle groups still recovering': 'مجموعات عضلية ما زالت تتعافى: {0}',
   '{0} mat session a week': 'جلسات البساط في الأسبوع: {0}',
   '{0} mat sessions a week': 'جلسات البساط في الأسبوع: {0}',
+  // --- running ---
+  'Running': 'الجري',
+  'Road to 10K': 'الطريق إلى 10 كم',
+  'Run day reminders': 'تذكيرات أيام الجري',
+  'Import a FIT file': 'استيراد ملف FIT',
+  'Garmin Connect': 'Garmin Connect',
+  'Strava': 'Strava',
 }
