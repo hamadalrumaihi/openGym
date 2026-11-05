@@ -310,6 +310,10 @@ apksigner sign --ks my.keystore --ks-key-alias opengym --out openGym.apk aligned
 
 ### iPhone — what's actually possible
 
+> No Mac at all? [IOS_WITHOUT_XCODE.md](IOS_WITHOUT_XCODE.md) compares xtool, GitHub's macOS
+> runners (`.github/workflows/ios.yml` builds the unsigned .ipa for you), TestFlight, AltStore,
+> Sideloadly, SideStore and the PWA, and says which parts are verified.
+
 Apple does not allow installing apps outside the App Store, so there is no `.ipa` download
 that would simply install. Your free options:
 
