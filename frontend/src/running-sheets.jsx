@@ -95,7 +95,7 @@ function RunningSetup({ close, onDone }) {
     <Row icon="calendar" iconTint="var(--green)" title={t('Start date')}><input type="date" className="timef" value={p.startDate} onChange={e => set({ startDate: e.target.value || p.startDate })} /></Row>
     <Row icon="flag" iconTint="var(--orange)" title={t('Race date')} subtitle={end ? t('The plan ends on {0}', fmtDate(end, true, true)) : undefined}><input type="date" className="timef" value={p.raceDate || end || ''} onChange={e => set({ raceDate: e.target.value || null })} /></Row>
     <Row icon="heart" iconTint="var(--red)" title={t('Max heart rate')} subtitle={t('Optional. Gives every session a zone-2 band; Garmin Connect can fill it in.')}>
-      <input type="number" className="timef" inputMode="numeric" min={100} max={230} placeholder="—" value={p.hrMax ?? ''} style={{ width: 70 }} onChange={e => set({ hrMax: e.target.value ? Number(e.target.value) : null })} />
+      <input type="number" className="timef" inputMode="numeric" min={100} max={230} placeholder="–" value={p.hrMax ?? ''} style={{ width: 70 }} onChange={e => set({ hrMax: e.target.value ? Number(e.target.value) : null })} />
     </Row>
     <Row icon="figureStrength" iconTint="var(--indigo)" title={t('Two running-strength sessions a week')} subtitle={t('Calves, hamstrings, glutes, quads, single-leg work and trunk. Never the day before the long run.')}>
       <Switch checked={!!p.strength} onChange={v => set({ strength: v })} />
@@ -219,8 +219,8 @@ function ManualRun({ close, date, existingId }) {
       <Label>{t('Kind')}</Label>
       <Chips options={['run', 'walk']} value={kind} onChange={setKind} labelOf={v => (v === 'run' ? t('Run') : t('Walk'))} />
       <Row icon="timer" iconTint="var(--green)" title={t('Minutes')}><input type="number" className="timef" inputMode="numeric" min={1} max={600} value={min} style={{ width: 70 }} onChange={e => setMin(Number(e.target.value))} /></Row>
-      <Row icon="figureRun" iconTint="var(--blue)" title={t('Distance (km)')} subtitle={pace ? t('{0} /km', fmtPace(pace)) : t('Optional')}><input type="number" className="timef" inputMode="decimal" step="0.1" min={0} max={200} value={km} placeholder="—" style={{ width: 70 }} onChange={e => setKm(e.target.value)} /></Row>
-      <Row icon="heart" iconTint="var(--red)" title={t('Average heart rate')} subtitle={t('Optional')}><input type="number" className="timef" inputMode="numeric" min={30} max={250} value={hr} placeholder="—" style={{ width: 70 }} onChange={e => setHr(e.target.value)} /></Row>
+      <Row icon="figureRun" iconTint="var(--blue)" title={t('Distance (km)')} subtitle={pace ? t('{0} /km', fmtPace(pace)) : t('Optional')}><input type="number" className="timef" inputMode="decimal" step="0.1" min={0} max={200} value={km} placeholder="–" style={{ width: 70 }} onChange={e => setKm(e.target.value)} /></Row>
+      <Row icon="heart" iconTint="var(--red)" title={t('Average heart rate')} subtitle={t('Optional')}><input type="number" className="timef" inputMode="numeric" min={30} max={250} value={hr} placeholder="–" style={{ width: 70 }} onChange={e => setHr(e.target.value)} /></Row>
     </>}
     <Label>{t('Effort, 1 easy to 10 all-out')}</Label>
     <Scale10 value={rpe} onChange={setRpe} />
@@ -338,8 +338,8 @@ export async function importFitFiles(files) {
   }
   const parts = []
   if (counts.added) parts.push(tn('{0} run imported', '{0} runs imported', counts.added))
-  if (counts.updated) parts.push(tn('{0} updated', '{0} updated', counts.updated))
-  if (counts.duplicates) parts.push(tn('{0} already there', '{0} already there', counts.duplicates))
+  if (counts.updated) parts.push(t('{0} updated', counts.updated))
+  if (counts.duplicates) parts.push(t('{0} already there', counts.duplicates))
   if (bad) parts.push(tn('{0} file could not be read', '{0} files could not be read', bad))
   toast(parts.join(' · ') || t('Nothing to import'))
   return { ...counts, bad }

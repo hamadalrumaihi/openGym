@@ -167,6 +167,7 @@ export function expandPlan(running, today = null) {
     const sessions = days
       .map((day, idx) => sessionOf(w, i, idx, day, addDays(weekStart, weekdayOffset(day)), r, mode))
       .filter(s => s.date >= running.startDate)
+      .sort((a, b) => (a.date < b.date ? -1 : 1))
     return { key: w.key, n: i + 1, kind: w.kind, stage: w.stage, reduced: !!w.reduced, mode, start: weekStart, end: weekEnd, sessions }
   })
 }

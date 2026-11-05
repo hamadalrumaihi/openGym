@@ -166,11 +166,10 @@ function garminBlock(g) {
   return Object.keys(out).length ? out : null
 }
 
-const runOrder = (a, b) => {
-  const ta = a.start ?? new Date(a.d + 'T12:00:00').getTime()
-  const tb = b.start ?? new Date(b.d + 'T12:00:00').getTime()
-  return ta - tb || (a.id < b.id ? -1 : 1)
-}
+/** When a run happened, as epoch ms: its recorded start, else noon on its day (the workoutAt rule). */
+export const runAt = r => (Number.isFinite(r?.start) ? r.start : typeof r?.d === 'string' && ISO.test(r.d) ? new Date(r.d + 'T12:00:00').getTime() : NaN)
+
+const runOrder = (a, b) => runAt(a) - runAt(b) || (a.id < b.id ? -1 : 1)
 
 /** Every run logged, oldest first, each with its id. */
 export function runsOf(S) {

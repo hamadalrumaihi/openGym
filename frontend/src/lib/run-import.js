@@ -21,7 +21,7 @@
 // also imported. Two runs within three minutes of each other with distances within five per
 // cent are one run; the copy from the device (fit, garmin) is kept over Strava's, because it is
 // the original record.
-import { readRun, runIdFor, RUN_SOURCES } from './running.js'
+import { readRun, runIdFor, runAt, RUN_SOURCES } from './running.js'
 
 export const SAME_START_MS = 3 * 60 * 1000
 export const SAME_DIST_FRAC = 0.05
@@ -121,9 +121,8 @@ export function runFromStrava(a, laps = null) {
 /** True when two runs are one run recorded twice. */
 export function sameRun(a, b) {
   if (!a || !b) return false
-  const ta = a.start ?? (a.d ? new Date(a.d + 'T12:00:00').getTime() : null)
-  const tb = b.start ?? (b.d ? new Date(b.d + 'T12:00:00').getTime() : null)
-  if (ta == null || tb == null) return false
+  const ta = runAt(a), tb = runAt(b)
+  if (!Number.isFinite(ta) || !Number.isFinite(tb)) return false
   if (a.start == null || b.start == null) {
     // Without a start time, the same day and a near-identical duration and distance.
     return a.d === b.d && Math.abs(a.sec - b.sec) <= 120 && Math.abs((a.distM || 0) - (b.distM || 0)) <= Math.max(100, (a.distM || 0) * SAME_DIST_FRAC)

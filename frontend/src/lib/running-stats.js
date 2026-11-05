@@ -4,7 +4,7 @@
 //
 // Every estimate says it is one. A "5K time" from a 6 km run is the run's average pace over
 // five kilometres, not a race result; the screen labels it so.
-import { runsOf, runningOf, sessionStatesOf, paceSecPerKm, GOAL_KM } from './running.js'
+import { runsOf, runningOf, sessionStatesOf, paceSecPerKm, runAt, GOAL_KM } from './running.js'
 import { allSessions, planEndDate, expandPlan } from './running-plan.js'
 import { matSessionsOf } from './sport.js'
 import { weekKey, todayISO } from './format.js'
@@ -112,7 +112,7 @@ export function trainingMix(S, today = todayISO(), days = 28) {
 }
 
 /** Heart-rate trend points for a chart: average HR of each run that had one, oldest first. */
-export const hrTrend = S => runsOf(S).filter(r => r.kind === 'run' && r.avgHr).map(r => ({ t: r.start ?? new Date(r.d + 'T12:00:00').getTime(), y: r.avgHr, d: r.d }))
+export const hrTrend = S => runsOf(S).filter(r => r.kind === 'run' && r.avgHr).map(r => ({ t: runAt(r), y: r.avgHr, d: r.d }))
 
 /** Pace trend points: average pace of each run with a distance, seconds per km, oldest first. */
-export const paceTrend = S => runsOf(S).filter(r => r.kind === 'run' && paceSecPerKm(r.sec, r.distM)).map(r => ({ t: r.start ?? new Date(r.d + 'T12:00:00').getTime(), y: Math.round(paceSecPerKm(r.sec, r.distM)), d: r.d }))
+export const paceTrend = S => runsOf(S).filter(r => r.kind === 'run' && paceSecPerKm(r.sec, r.distM)).map(r => ({ t: runAt(r), y: Math.round(paceSecPerKm(r.sec, r.distM)), d: r.d }))

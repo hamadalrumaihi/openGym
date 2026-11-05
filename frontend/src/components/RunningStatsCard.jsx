@@ -49,7 +49,7 @@ export default function RunningStatsCard({ S }) {
     {progress && <div className="small muted" style={{ marginTop: 8 }}>
       {t('Week {0} of {1}', Math.min(progress.weeks, progress.weeksDone + 1), progress.weeks)}
       {cons?.planned ? ` · ${t('{0} of {1} sessions kept', cons.done, cons.planned)}` : ''}
-      {progress.daysToRace != null && progress.daysToRace >= 0 ? ` · ${tn('race in {0} day', 'race in {0} days', progress.daysToRace)}` : ''}
+      {progress.daysToRace != null && progress.daysToRace >= 0 ? ` · ${tn('Race in {0} day', 'Race in {0} days', progress.daysToRace)}` : ''}
     </div>}
     {runs.length > 0 && <>
       <Segmented className="seg-range" value={weeks} onChange={setWeeks} options={RANGES()} />

@@ -147,7 +147,7 @@ export default function Running() {
       {upcoming.length ? <div className="list">
         {upcoming.map(s => <div key={s.id} className="item" {...tappable(() => runSessionSheet(s, (weeks.find(w => w.key === s.weekKey) || {}).n))}>
           <span className="lrow-i" style={{ '--tint': s.kind === 'long' ? 'var(--orange)' : s.kind === 'race' ? 'var(--red)' : 'var(--green)' }}><Icon name="figureRun" /></span>
-          <div className="grow"><div className="tt">{t(DAYS[s.day])} {fmtDate(s.date, true)} · {KIND_LABEL[s.kind]()}</div><div className="ss">{sessionLine(s)}{s.totalMin ? ` · ${t('{0} min', s.totalMin)}` : ''}</div></div>
+          <div className="grow"><div className="tt">{fmtDate(s.date, true)} · {KIND_LABEL[s.kind]()}</div><div className="ss">{sessionLine(s)}{s.totalMin ? ` · ${t('{0} min', s.totalMin)}` : ''}</div></div>
           <Icon name="chevronRight" className="chev" />
         </div>)}
       </div> : <div className="muted small">{t('Nothing further planned.')}</div>}
@@ -223,7 +223,7 @@ function RunsCard({ runs }) {
         <Icon name="chevronRight" className="chev" />
       </div>)}
     </div> : <div className="muted small" style={{ marginTop: 6 }}>{t('No runs yet. Connect Garmin or Strava in Settings, import a FIT file, or log one by hand.')}</div>}
-    {runs.length > 5 && <div className="row" style={{ justifyContent: 'flex-end', marginTop: 4 }}><Button size="sm" variant="ghost" onClick={() => setAll(v => !v)}>{all ? t('Fewer') : tn('All {0} runs', 'All {0} runs', runs.length)}</Button></div>}
+    {runs.length > 5 && <div className="row" style={{ justifyContent: 'flex-end', marginTop: 4 }}><Button size="sm" variant="ghost" onClick={() => setAll(v => !v)}>{all ? t('Fewer') : t('All runs ({0})', runs.length)}</Button></div>}
   </div>
 }
 
