@@ -9,6 +9,7 @@ Pick the part that matches what you're doing. If you just have a question, try t
 |---|---|
 | [FAQ](FAQ.md) | You have a quick question: iPhone, cost, where your data goes, AI, the exercise media |
 | [Phone app](MOBILE.md) | You want the Android APK or the iPhone options, or to connect the app to your own server |
+| [iPhone without a Mac](IOS_WITHOUT_XCODE.md) | You have no Mac: what xtool, GitHub's macOS runners, TestFlight, AltStore/Sideloadly/SideStore and the PWA each give you, and what is verified |
 | [Importing data](DATA_IMPORTS.md) | You're coming from FitNotes, Strong, Hevy or Apple Health, or sharing a plan with someone |
 | [AI coach](AI_COACH.md) | Your instance has the coach switched on and you want to know what it sees and can change |
 | [Running](RUNNING.md) | You want the Road to 10K plan, your Garmin Forerunner or Strava runs in openGym, or a session on the watch |
