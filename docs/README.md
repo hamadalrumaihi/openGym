@@ -12,6 +12,7 @@ Pick the part that matches what you're doing. If you just have a question, try t
 | [iPhone without a Mac](IOS_WITHOUT_XCODE.md) | You have no Mac: what xtool, GitHub's macOS runners, TestFlight, AltStore/Sideloadly/SideStore and the PWA each give you, and what is verified |
 | [Importing data](DATA_IMPORTS.md) | You're coming from FitNotes, Strong, Hevy or Apple Health, or sharing a plan with someone |
 | [AI coach](AI_COACH.md) | Your instance has the coach switched on and you want to know what it sees and can change |
+| [Running](RUNNING.md) | You want the Road to 10K plan, your Garmin Forerunner or Strava runs in openGym, or a session on the watch |
 
 The [live demo](https://opengym.ch/demo/) is the real app with example data, nothing
 to install.
@@ -50,6 +51,7 @@ Design notes for specific features, kept next to the code they describe:
 | [Workout views](dev/LIST_VIEW.md) | The cards, list and compact layouts of the workout screen |
 | [Combine routines](dev/COMBINE_ROUTINES.md) | Spec for running more than one routine in a session |
 | [Judo and BJJ](dev/SPORT.md) | The sport plans, substitutions by movement pattern, progression by kind of exercise, mat context and the Coach's sport side |
+| [Running](dev/RUNNING.md) | The run/walk programme, the coach's rules, the Garmin and Strava connections, the FIT reader and writer |
 
 ## Still stuck?
 

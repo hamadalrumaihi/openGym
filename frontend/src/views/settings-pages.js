@@ -17,6 +17,7 @@ export const PAGES = {
   equipment: { title: 'Equipment', icon: 'kettlebell', tint: 'var(--indigo)' },
   look: { title: 'Look & Home', icon: 'palette', tint: 'var(--purple)' },
   coach: { title: 'AI Coach', icon: 'sparkles', tint: 'var(--green)' },
+  running: { title: 'Running', icon: 'figureRun', tint: 'var(--green)' },
   data: { title: 'Data & backup', icon: 'folder', tint: 'var(--blue)' },
   about: { title: 'About & updates', icon: 'info', tint: 'var(--grey)' },
   account: { title: 'Account', icon: 'personCircle', tint: 'var(--grey)' },
@@ -25,7 +26,7 @@ export const PAGES = {
 export const PAGE_IDS = Object.keys(PAGES)
 
 // The root, top to bottom. Whether a row shows is pageVisible's call.
-export const ROOT_GROUPS = [['workout', 'alerts', 'reminders'], ['plan', 'units', 'equipment'], ['look', 'coach'], ['data', 'about']]
+export const ROOT_GROUPS = [['workout', 'alerts', 'reminders'], ['plan', 'units', 'equipment'], ['look', 'coach', 'running'], ['data', 'about']]
 
 /**
  * Whether a page exists for this device and profile. Reminders need a push server (signed in) or
@@ -110,6 +111,12 @@ export const SEARCH = [
   { page: 'look', title: 'Gym check-in', icon: 'qr', tint: 'var(--blue)', kw: 'qr code membership card check in barcode' },
   { page: 'look', title: 'Body weight', icon: 'scale', tint: 'var(--green)', kw: 'weight card home' },
   { page: 'look', title: 'Show connection status', icon: 'cloud', tint: 'var(--blue)', kw: 'sync offline banner bar connection', when: c => !c.demo },
+  // Running
+  { page: 'running', title: 'Road to 10K', icon: 'figureRun', tint: 'var(--green)', kw: 'running run plan 10k 5k half marathon race couch jog walk' },
+  { page: 'running', title: 'Run day reminders', icon: 'bell', tint: 'var(--red)', kw: 'running reminder notification run day', when: c => c.runningOn },
+  { page: 'running', title: 'Garmin Connect', icon: 'link', tint: 'var(--blue)', kw: 'garmin connect watch forerunner personal api key sync import' },
+  { page: 'running', title: 'Import a FIT file', icon: 'download', tint: 'var(--teal)', kw: 'fit file garmin import activity watch' },
+  { page: 'running', title: 'Strava', icon: 'link', tint: 'var(--orange)', kw: 'strava connect oauth sync import activities' },
   // Data & backup
   { page: 'data', title: 'Export backup (JSON)', icon: 'share', tint: 'var(--blue)', kw: 'export backup json download save' },
   { page: 'data', title: 'Export with photos & videos (.zip)', icon: 'share', tint: 'var(--blue)', kw: 'zip media export backup', when: c => c.hasMedia },

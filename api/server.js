@@ -16,9 +16,12 @@ import webpush from 'web-push';
 import * as coachConfig from './coach/config.js';
 import * as coachJobs from './coach/jobs.js';
 import { coachRoutes } from './coach/routes.js';
+import { integrationsRoutes, createClients as createIntegrationClients } from './integrations/routes.js';
+import { startPoller as startIntegrationsPoller } from './integrations/sync.js';
 import { startCadence } from './coach/cadence.js';
 import { startWarmup } from './coach/warmup.js';
-import { dayReminderPush, nudgePush, restTimerPush, testPush } from './push-messages.js';
+import { dayReminderPush, nudgePush, restTimerPush, testPush, runDayPush } from './push-messages.js';
+import { runDayOn } from './integrations/run-days.js';
 import { verifyError } from './verify-error.js';
 import {
   hashPassword, verifyPassword, needsRehash, passwordProblem, passwordLength, nameKey, BusyError,
@@ -515,7 +518,16 @@ setInterval(() => {
       if ((S.workouts || []).some(w => w?.d === now.date)) continue;
       if (excusedOn(S, now.date)) continue; // noted as sick, away, … (nudge.js excusedOn)
       const rid = effectiveRoutineId(S, now.date);
-      if (!rid) continue; // rest day — nothing planned
+      if (!rid) {
+        // No gym session: a planned run (Road to 10K) gets the same reminder at the same time.
+        const run = runDayOn(S, now.date);
+        if (!run) continue; // rest day — nothing planned
+        console.log('run reminder firing', user.id, run.kind);
+        user.lastReminder = now.date;
+        saveDb();
+        sendPush(user.id, runDayPush(S.lang, run));
+        continue;
+      }
       const routine = (S.routines || []).find(r => r?.id === rid);
       console.log('reminder firing', user.id, rid);
       user.lastReminder = now.date;
@@ -1904,6 +1916,11 @@ function dataWritable() {
   return ok;
 }
 
+// Built once, shared by the routes and the poller below; Strava stays null without client keys.
+const integrationClients = createIntegrationClients({ env: process.env });
+// Minutes between automatic pulls from Garmin and Strava for connected users; 0 switches it off.
+const INTEGRATIONS_POLL_MIN = Math.max(0, +(process.env.INTEGRATIONS_POLL_MIN ?? 30) || 0);
+
 const routes = {
   // 503 rather than a flag in a 200: the container healthcheck is `wget --spider`, which reads
   // the status and nothing else, and an instance that cannot write its data directory is exactly
@@ -2575,6 +2592,11 @@ const routes = {
   // a cycle. Every one of them is inert while the feature is unconfigured.
   ...coachRoutes({ json, readBody, readSession, requireAdmin }),
 
+  /* ---------- Garmin and Strava connections ---------- */
+  // The person's own watch and Strava data, pulled read-only into a pending list the app turns
+  // into runs (api/integrations). Tokens live encrypted in their own file, never in the state.
+  ...integrationsRoutes({ json, readBody, readSession, audit, origin: ORIGIN, clients: integrationClients }),
+
   /* ---------- photos & videos ---------- */
   // Absent, not refusing, when MEDIA_UPLOADS=0: a 404 is what a server from before the feature
   // answers, and the client already treats that as "this server does not store them".
@@ -2597,6 +2619,7 @@ coachJobs.setProposalHook((uid, pending) => {
   });
 });
 startCadence({ users: () => db.users, userNow });
+startIntegrationsPoller({ intervalMs: INTEGRATIONS_POLL_MIN * 60000, ...integrationClients });
 startWarmup();
 
 // node's requestTimeout is one number for every route, and it is half an hour (below) for the

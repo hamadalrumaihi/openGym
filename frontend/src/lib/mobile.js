@@ -14,6 +14,7 @@ import { isoOf, todayISO } from './format.js'
 import { effectiveRoutineIds } from './history.js'
 import { NUDGE_COPY, lineIndex, nudgeFor, nudgeMinute, toneOf } from './nudge.js'
 import { excusedOn } from './day-notes.js'
+import { runDaysAhead } from './running-coach.js'
 
 export const MOBILE = import.meta.env.VITE_MOBILE === '1'
 
@@ -135,6 +136,34 @@ export function buildReminderNotifications(S, now = new Date()) {
 // that date, so asking about tomorrow and the day after already applies the back-off of a break
 // that goes on — at most 3 of these are ever queued past the last workout. Logging a workout
 // resyncs (every persist does), which drops the day and resets the count.
+// The planned runs (Road to 10K) as native notifications, at the reminder time, one per run day
+// in the window that has nothing ticked or logged yet. Off with the day reminder, or on its own
+// through the profile's `remind`.
+const RUN_ID_BASE = 3000
+export function buildRunNotifications(S, now = new Date()) {
+  const r = S?.reminder
+  if (!r?.on || !S?.running?.plan || S.running.remind === false) return []
+  const [hour, minute] = (r.time || '08:00').split(':').map(Number)
+  if (!Number.isInteger(hour) || !Number.isInteger(minute)) return []
+  const today = isoOf(new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12))
+  const logged = new Set(Object.values(S.runLog || {}).map(x => x?.d).filter(Boolean))
+  const out = []
+  for (const day of runDaysAhead(S, today, REMINDER_WINDOW_DAYS)) {
+    if (logged.has(day.date) || excusedOn(S, day.date)) continue
+    const at = new Date(day.date + 'T12:00:00')
+    at.setHours(hour, minute, 0, 0)
+    if (at <= now) continue
+    const offset = Math.round((new Date(day.date + 'T12:00:00') - new Date(today + 'T12:00:00')) / 86400000)
+    out.push({
+      id: RUN_ID_BASE + offset,
+      title: day.kind === 'race' ? t('Race day') : day.kind === 'long' ? t('Long run today') : t('Run day'),
+      body: day.kind === 'race' ? t('This is the one you trained for. Start easy, finish strong.') : t('Your Road to 10K session is on the plan today. Easy pace, walk breaks are fine.'),
+      schedule: { at, allowWhileIdle: true },
+    })
+  }
+  return out
+}
+
 export const NUDGE_WINDOW_DAYS = 7
 const NUDGE_ID_BASE = 2000
 export function buildNudgeNotifications(S, now = new Date()) {
@@ -180,13 +209,14 @@ export async function syncReminder(S, interactive = false) {
       ...LEGACY_REMINDER_IDS,
       ...Array.from({ length: REMINDER_WINDOW_DAYS }, (_, d) => ({ id: REMINDER_ID_BASE + d })),
       ...Array.from({ length: NUDGE_WINDOW_DAYS }, (_, d) => ({ id: NUDGE_ID_BASE + d })),
+      ...Array.from({ length: REMINDER_WINDOW_DAYS }, (_, d) => ({ id: RUN_ID_BASE + d })),
     ] }).catch(() => {})
     const r = S.reminder
     if (!r?.on) return true
     let perm = await LocalNotifications.checkPermissions()
     if (perm.display !== 'granted' && interactive) perm = await LocalNotifications.requestPermissions()
     if (perm.display !== 'granted') return false
-    const notifications = [...buildReminderNotifications(S), ...buildNudgeNotifications(S)]
+    const notifications = [...buildReminderNotifications(S), ...buildNudgeNotifications(S), ...buildRunNotifications(S)]
     if (notifications.length) await LocalNotifications.schedule({ notifications })
     return true
   } catch (e) { return false }
