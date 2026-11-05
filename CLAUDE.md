@@ -16,6 +16,8 @@ frontend/  React 19 + Vite app (src/views, src/components, src/store, src/lib). 
            android/ + ios/ are the Capacitor shells for the standalone mobile app (docs/MOBILE.md).
 api/       backend — server.js (Node, no framework), deps: @simplewebauthn/server, web-push.
            coach/ is the optional AI coach; openapi.yaml documents every route.
+           integrations/ is the Garmin Connect (Personal API) and Strava side: encrypted per-user
+           tokens, read-only pulls into a pending list the app collects (docs/dev/RUNNING.md).
 web/       multi-stage Dockerfile (builds frontend → nginx) + nginx.conf.template (serves app, proxies /api).
 mcp/       optional MCP server — read-only stdio bridge exposing a user's workouts/1RM/muscle
            balance to LLM clients (Claude Desktop, Cursor…). Not part of the Docker build; only
@@ -24,7 +26,8 @@ media/     exercise img/gif, gitignored, fetched at runtime by the `media` compo
 website/   static project site (plain HTML/CSS/JS), deployed separately.
 kubernetes/ example manifests (docs/SELF_HOSTING_KUBERNETES.md).
 docs/      guides indexed in docs/README.md (FAQ, SELF_HOSTING*, MOBILE, AI_COACH, DATA_IMPORTS, API);
-           docs/dev/ holds feature design notes (SET_TYPES: drop sets/rest-pause, LIST_VIEW, COMBINE_ROUTINES).
+           docs/dev/ holds feature design notes (SET_TYPES: drop sets/rest-pause, LIST_VIEW, COMBINE_ROUTINES,
+           SPORT: judo/BJJ, RUNNING: Road to 10K, the running coach, Garmin and Strava).
 ```
 
 ## Commands
@@ -82,6 +85,9 @@ directly; the mirror is fast-forward only.
   - `workout-model.js`, `supersetFlow.js` — in-session workout state machine, incl. supersets.
   - `exercises.js` / `exercises-data.js` — the exercise library (1,324 built-ins + user-defined).
   - `api.js` — the only place that talks to the backend (`fetch` wrapper, session cookie flows).
+  - `running.js`, `running-plan.js`, `running-coach.js`, `running-stats.js`, `run-import.js`,
+    `fit-decode.js`, `fit-workout.js` — the running side: the Road to 10K run/walk plan, the
+    rules-based coach, imports from Garmin/Strava/FIT and the FIT workout writer (docs/dev/RUNNING.md).
   - CONTRIBUTING.md is explicit: **anything that decides what you lift next, or reads a logged
     session back, is a pure helper here with a unit test beside it** — not verifiable by
     clicking, and the progression engine has already had two bugs that only a test caught.
