@@ -11,6 +11,7 @@
 //     level:     'new' | 'returning' | 'base'   never ran / used to run / can run 20-30 min now
 //     hrMax:     number | null             for heart-rate zones, when the person knows it
 //     strength:  boolean                   the two optional running-strength sessions are wanted
+//     remind:    boolean                   run days join the day reminder (default true)
 //     weekMode:  null | { mode: 'busy' | 'recovery', until: 'YYYY-MM-DD' }
 //     plan:      { weeks: [...], nextKey } the skeleton lib/running-plan.js expands (stage, kind, reduced per week)
 //     setAt:     number                    when the profile was last saved (ms)
@@ -79,6 +80,7 @@ export function readRunning(v) {
     level: oneOf(RUN_LEVELS, v.level, 'returning'),
     hrMax: num(v.hrMax, 100, 230),
     strength: !!v.strength,
+    remind: v.remind !== false,
     weekMode,
     plan,
     setAt: Number.isFinite(Number(v.setAt)) ? Number(v.setAt) : 0,

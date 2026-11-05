@@ -9,6 +9,9 @@ const COPY = {
     dayFallbackTitle: 'Workout planned today',
     dayRoutineSuffix: 'today',
     dayBody: "It's on your plan. Let's go 💪",
+    runTitle: { run: '🏃 Run day', long: '🏃 Long run today', race: '🏁 Race day' },
+    runBody: 'Your Road to 10K session is on the plan today. Easy pace, walk breaks are fine.',
+    raceBody: 'This is the one you trained for. Start easy, finish strong.',
   },
   'pt-BR': {
     restTitle: 'Descanso terminado 💪',
@@ -17,6 +20,9 @@ const COPY = {
     dayFallbackTitle: 'Treino planejado para hoje',
     dayRoutineSuffix: 'hoje',
     dayBody: 'Está no seu plano. Bora treinar 💪',
+    runTitle: { run: '🏃 Dia de corrida', long: '🏃 Corrida longa hoje', race: '🏁 Dia de prova' },
+    runBody: 'Sua sessão da Road to 10K está no plano hoje. Ritmo leve, caminhar nos intervalos é bem-vindo.',
+    raceBody: 'É para isso que você treinou. Comece devagar, termine forte.',
   },
 };
 
@@ -40,6 +46,13 @@ export function dayReminderPush(lang, routine) {
     body: copy.dayBody,
     tag: 'day-reminder',
   };
+}
+
+// The planned run of the day (integrations/run-days.js): a run, the long one, or the race.
+export function runDayPush(lang, run) {
+  const copy = copyFor(lang);
+  const kind = run?.kind === 'race' ? 'race' : run?.kind === 'long' ? 'long' : 'run';
+  return { title: copy.runTitle[kind], body: kind === 'race' ? copy.raceBody : copy.runBody, tag: 'run-day' };
 }
 
 // The missed-workout nudge (nudge.js). Its copy is translated in the frontend packs and generated
