@@ -222,6 +222,7 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
   <a class="side-link" href="#activity"><b>Activity</b><span>Live presence</span></a>
   <a class="side-link" href="#media"><b>Media</b><span>Photos &amp; videos of your exercises &amp; workouts</span></a>
   <a class="side-link" href="#coach"><b>AI Coach</b><span>Plans, reviews, debriefs</span></a>
+  <a class="side-link" href="#integrations"><b>Integrations</b><span>Garmin Connect &amp; Strava, read-only</span></a>
   <a class="side-link" href="#admin"><b>Admin</b><span>Users, invites, audit log, Coach</span></a>
   <a class="side-link" href="#schemas"><b>Schemas</b><span>The state blob, the error shape &amp; co.</span></a>
   <p class="side-label">More</p>
@@ -245,7 +246,7 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
   <p class="api-facts">
     <span>OpenAPI 3.1.0</span>
     <span>openGym v1.4.1</span>
-    <span>69 endpoints</span>
+    <span>81 endpoints</span>
     <span>AGPL-3.0-or-later</span>
   </p>
 
@@ -2473,6 +2474,435 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
   </div>
 </section>
 
+<section class="api-sec" id="integrations">
+  <h2>Integrations</h2>
+  <p class="sub">The signed-in person's own Garmin Connect (Personal API) and Strava connections: read-only pulls of their recent runs into a pending list the app turns into its run log. Tokens are stored encrypted in their own file, never in the state. Nothing is ever written to Garmin or Strava. The Strava routes answer 503 while the instance has no <code>STRAVA_CLIENT_ID</code> / <code>STRAVA_CLIENT_SECRET</code>.</p>
+  <div class="eps">
+
+<details class="ep" id="op-integrationsStatus">
+  <summary>
+    <span class="m get">GET</span>
+    <span class="ep-path"><code>/api/integrations</code></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum">Garmin and Strava connection status</span>
+  </summary>
+  <div class="ep-body">
+<p>What this instance has configured and what the signed-in person has connected: for each provider whether it is connected, when it last synced, its last error and the pause a rate limit imposed; plus how many fetched activities are waiting for the app. Never the token material.</p>
+    <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Requires a session: the cookie set at sign-in, or <code>Authorization: Bearer &lt;token&gt;</code> from mobile-app pairing.</span></p>
+
+
+    <p class="ep-h">Responses</p>
+    <div class="ptab">
+  <div class="prow rrow">
+    <span class="r-code s2">200</span>
+    <span class="p-desc">Status<span class="r-sig">{ strava: <a href="#schema-IntegrationStatus">IntegrationStatus</a>, garmin: <a href="#schema-IntegrationStatus">IntegrationStatus</a>, pending: integer, poll: integer }</span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">401</span>
+    <span class="p-desc">No session, expired/revoked session, or a disabled account.<span class="r-sig"><code>{&quot;error&quot;:&quot;not signed in&quot;}</code></span></span>
+  </div>
+    </div>
+  </div>
+</details>
+
+<details class="ep" id="op-stravaConnect">
+  <summary>
+    <span class="m post">POST</span>
+    <span class="ep-path"><code>/api/integrations/strava/connect</code></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum">Start connecting Strava</span>
+  </summary>
+  <div class="ep-body">
+<p>Mints a one-time <code>state</code> bound to this account (ten minutes) and returns the Strava authorisation URL to send the browser to, asking for <code>read,activity:read_all</code>.</p>
+    <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Requires a session: the cookie set at sign-in, or <code>Authorization: Bearer &lt;token&gt;</code> from mobile-app pairing.</span></p>
+
+
+    <p class="ep-h">Responses</p>
+    <div class="ptab">
+  <div class="prow rrow">
+    <span class="r-code s2">200</span>
+    <span class="p-desc">Where to send the browser<span class="r-sig">{ url: string }</span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">401</span>
+    <span class="p-desc">No session, expired/revoked session, or a disabled account.<span class="r-sig"><code>{&quot;error&quot;:&quot;not signed in&quot;}</code></span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s5">503</span>
+    <span class="p-desc">Strava is not configured on this instance</span>
+  </div>
+    </div>
+  </div>
+</details>
+
+<details class="ep" id="op-stravaCallback">
+  <summary>
+    <span class="m get">GET</span>
+    <span class="ep-path"><code>/api/integrations/strava/callback</code></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum">Strava sends the browser back here</span>
+  </summary>
+  <div class="ep-body">
+<p>The OAuth redirect target. Checks the <code>state</code> against the session that minted it, requires the <code>activity:read</code> scope in the grant, exchanges the code for tokens, stores them encrypted, starts a first pull in the background and redirects into the app (<code>/#/settings/integrations?strava=connected</code>, or <code>?strava=&lt;reason&gt;</code> on failure: <code>signin</code>, <code>state</code>, <code>denied</code>, <code>scope</code>, <code>http</code>, <code>network</code>).</p>
+    <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Requires a session: the cookie set at sign-in, or <code>Authorization: Bearer &lt;token&gt;</code> from mobile-app pairing.</span></p>
+<p class="ep-h">Query parameters</p><div class="ptab">
+  <div class="prow">
+    <span class="p-name">code</span>
+    <span class="p-type">string</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">scope</span>
+    <span class="p-type">string</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">state</span>
+    <span class="p-type">string</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">error</span>
+    <span class="p-type">string</span>
+    <span class="p-desc"></span>
+  </div>
+</div>
+
+    <p class="ep-h">Responses</p>
+    <div class="ptab">
+  <div class="prow rrow">
+    <span class="r-code s3">302</span>
+    <span class="p-desc">Redirect into the app</span>
+  </div>
+    </div>
+  </div>
+</details>
+
+<details class="ep" id="op-stravaSync">
+  <summary>
+    <span class="m post">POST</span>
+    <span class="ep-path"><code>/api/integrations/strava/sync</code></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum">Pull new Strava activities now</span>
+  </summary>
+  <div class="ep-body">
+<p>Fetches activities since the last sync (two days of overlap), laps for the newest runs within the rate headroom, and adds them to the pending list. <code>days</code> asks for history instead (up to 400 days). Rate limits are read from Strava's headers; a 429 pauses the provider until the next quarter hour.</p>
+    <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Requires a session: the cookie set at sign-in, or <code>Authorization: Bearer &lt;token&gt;</code> from mobile-app pairing.</span></p>
+
+<p class="ep-h">Request body <span class="p-hint">(JSON)</span> <span class="p-hint">(optional)</span></p><div class="ptab">
+  <div class="prow">
+    <span class="p-name">days</span>
+    <span class="p-type">integer <span class="p-hint">(0&ndash;400)</span></span>
+    <span class="p-desc"></span>
+  </div>
+</div>
+    <p class="ep-h">Responses</p>
+    <div class="ptab">
+  <div class="prow rrow">
+    <span class="r-code s2">200</span>
+    <span class="p-desc">What was fetched<span class="r-sig">{ ok: boolean, fetched: integer, complete: boolean, pending: integer }</span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">401</span>
+    <span class="p-desc">No session, expired/revoked session, or a disabled account.<span class="r-sig"><code>{&quot;error&quot;:&quot;not signed in&quot;}</code></span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">429</span>
+    <span class="p-desc">Strava's rate limit was reached</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s5">502</span>
+    <span class="p-desc">Strava could not be reached or answered an error</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s5">503</span>
+    <span class="p-desc">Strava is not configured on this instance</span>
+  </div>
+    </div>
+  </div>
+</details>
+
+<details class="ep" id="op-stravaDisconnect">
+  <summary>
+    <span class="m post">POST</span>
+    <span class="ep-path"><code>/api/integrations/strava/disconnect</code></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum">Disconnect Strava</span>
+  </summary>
+  <div class="ep-body">
+<p>Revokes the token at Strava (best effort), deletes the stored tokens and every Strava activity still waiting in the pending list. <code>deleteRuns</code> is echoed back so the app knows to remove the Strava-sourced runs from its own log as well.</p>
+    <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Requires a session: the cookie set at sign-in, or <code>Authorization: Bearer &lt;token&gt;</code> from mobile-app pairing.</span></p>
+
+<p class="ep-h">Request body <span class="p-hint">(JSON)</span> <span class="p-hint">(optional)</span></p><div class="ptab">
+  <div class="prow">
+    <span class="p-name">deleteRuns</span>
+    <span class="p-type">boolean</span>
+    <span class="p-desc"></span>
+  </div>
+</div>
+    <p class="ep-h">Responses</p>
+    <div class="ptab">
+  <div class="prow rrow">
+    <span class="r-code s2">200</span>
+    <span class="p-desc">Disconnected<span class="r-sig">{ ok: boolean, deleteRuns: boolean }</span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">401</span>
+    <span class="p-desc">No session, expired/revoked session, or a disabled account.<span class="r-sig"><code>{&quot;error&quot;:&quot;not signed in&quot;}</code></span></span>
+  </div>
+    </div>
+  </div>
+</details>
+
+<details class="ep" id="op-stravaWebhookVerify">
+  <summary>
+    <span class="m get">GET</span>
+    <span class="ep-path"><code>/api/integrations/strava/webhook</code><span class="ep-chip public">public</span></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum">Strava webhook subscription check</span>
+  </summary>
+  <div class="ep-body">
+<p>Strava's validation request when the operator creates the subscription: echoes <code>hub.challenge</code> when <code>hub.verify_token</code> matches <code>STRAVA_WEBHOOK_VERIFY_TOKEN</code>. A 404 while that variable is unset.</p>
+    <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Public: no authentication required.</span></p>
+<p class="ep-h">Query parameters</p><div class="ptab">
+  <div class="prow">
+    <span class="p-name">hub.mode</span>
+    <span class="p-type">string</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">hub.verify_token</span>
+    <span class="p-type">string</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">hub.challenge</span>
+    <span class="p-type">string</span>
+    <span class="p-desc"></span>
+  </div>
+</div>
+
+    <p class="ep-h">Responses</p>
+    <div class="ptab">
+  <div class="prow rrow">
+    <span class="r-code s2">200</span>
+    <span class="p-desc">The challenge echoed<span class="r-sig">{ hub.challenge: string }</span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">403</span>
+    <span class="p-desc">Verify token mismatch</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">404</span>
+    <span class="p-desc">Webhooks are not configured</span>
+  </div>
+    </div>
+  </div>
+</details>
+
+<details class="ep" id="op-stravaWebhookEvent">
+  <summary>
+    <span class="m post">POST</span>
+    <span class="ep-path"><code>/api/integrations/strava/webhook</code><span class="ep-chip public">public</span></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum">Strava webhook event</span>
+  </summary>
+  <div class="ep-body">
+<p>Answers 200 at once (Strava allows two seconds) and then acts: an activity event pulls that athlete's new activities into their pending list; an athlete deauthorisation deletes the connection. Events for athletes nobody connected are ignored.</p>
+    <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Public: no authentication required.</span></p>
+
+<p class="ep-h">Request body <span class="p-hint">(JSON)</span></p>
+    <p class="ep-h">Responses</p>
+    <div class="ptab">
+  <div class="prow rrow">
+    <span class="r-code s2">200</span>
+    <span class="p-desc">Acknowledged<span class="r-sig"><a href="#schema-Ok">Ok</a></span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">404</span>
+    <span class="p-desc">Webhooks are not configured</span>
+  </div>
+    </div>
+  </div>
+</details>
+
+<details class="ep" id="op-garminConnect">
+  <summary>
+    <span class="m post">POST</span>
+    <span class="ep-path"><code>/api/integrations/garmin/connect</code></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum">Connect a Garmin Connect Personal API key</span>
+  </summary>
+  <div class="ep-body">
+<p>Takes the Personal API key the person created in Garmin Connect, checks it by buying one 24-hour access token, stores it encrypted and starts a first pull in the background. The key is read-only by construction (Garmin's Personal API is pull-only); it never reaches the state or a backup.</p>
+    <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Requires a session: the cookie set at sign-in, or <code>Authorization: Bearer &lt;token&gt;</code> from mobile-app pairing.</span></p>
+
+<p class="ep-h">Request body <span class="p-hint">(JSON)</span></p><div class="ptab">
+  <div class="prow">
+    <span class="p-name">key<em class="p-req" title="required">required</em></span>
+    <span class="p-type">string</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">keyExpires</span>
+    <span class="p-type">string <span class="p-hint">(date)</span></span>
+    <span class="p-desc">When Garmin will expire the key</span>
+  </div>
+</div>
+    <p class="ep-h">Responses</p>
+    <div class="ptab">
+  <div class="prow rrow">
+    <span class="r-code s2">200</span>
+    <span class="p-desc">Connected<span class="r-sig"><a href="#schema-Ok">Ok</a></span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">400</span>
+    <span class="p-desc">No key</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">401</span>
+    <span class="p-desc">Garmin refused the key (or not signed in)</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s5">502</span>
+    <span class="p-desc">Garmin could not be reached</span>
+  </div>
+    </div>
+  </div>
+</details>
+
+<details class="ep" id="op-garminSync">
+  <summary>
+    <span class="m post">POST</span>
+    <span class="ep-path"><code>/api/integrations/garmin/sync</code></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum">Pull new Garmin activities now</span>
+  </summary>
+  <div class="ep-body">
+<p>Running and walking activities since the last sync (two days of overlap), or <code>days</code> of history (up to 400), trimmed of every coordinate, into the pending list; refreshes the heart-rate zones Garmin Connect holds once a week.</p>
+    <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Requires a session: the cookie set at sign-in, or <code>Authorization: Bearer &lt;token&gt;</code> from mobile-app pairing.</span></p>
+
+<p class="ep-h">Request body <span class="p-hint">(JSON)</span> <span class="p-hint">(optional)</span></p><div class="ptab">
+  <div class="prow">
+    <span class="p-name">days</span>
+    <span class="p-type">integer <span class="p-hint">(0&ndash;400)</span></span>
+    <span class="p-desc"></span>
+  </div>
+</div>
+    <p class="ep-h">Responses</p>
+    <div class="ptab">
+  <div class="prow rrow">
+    <span class="r-code s2">200</span>
+    <span class="p-desc">What was fetched<span class="r-sig">{ ok: boolean, fetched: integer, complete: boolean, pending: integer }</span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">401</span>
+    <span class="p-desc">Garmin refused the key or token (it may have expired)</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">429</span>
+    <span class="p-desc">Garmin's rate limit was reached</span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s5">502</span>
+    <span class="p-desc">Garmin could not be reached</span>
+  </div>
+    </div>
+  </div>
+</details>
+
+<details class="ep" id="op-garminDisconnect">
+  <summary>
+    <span class="m post">POST</span>
+    <span class="ep-path"><code>/api/integrations/garmin/disconnect</code></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum">Disconnect Garmin</span>
+  </summary>
+  <div class="ep-body">
+<p>Deletes the stored key and every Garmin activity still waiting; <code>deleteRuns</code> is echoed back.</p>
+    <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Requires a session: the cookie set at sign-in, or <code>Authorization: Bearer &lt;token&gt;</code> from mobile-app pairing.</span></p>
+
+<p class="ep-h">Request body <span class="p-hint">(JSON)</span> <span class="p-hint">(optional)</span></p><div class="ptab">
+  <div class="prow">
+    <span class="p-name">deleteRuns</span>
+    <span class="p-type">boolean</span>
+    <span class="p-desc"></span>
+  </div>
+</div>
+    <p class="ep-h">Responses</p>
+    <div class="ptab">
+  <div class="prow rrow">
+    <span class="r-code s2">200</span>
+    <span class="p-desc">Disconnected<span class="r-sig">{ ok: boolean, deleteRuns: boolean }</span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">401</span>
+    <span class="p-desc">No session, expired/revoked session, or a disabled account.<span class="r-sig"><code>{&quot;error&quot;:&quot;not signed in&quot;}</code></span></span>
+  </div>
+    </div>
+  </div>
+</details>
+
+<details class="ep" id="op-integrationsActivities">
+  <summary>
+    <span class="m get">GET</span>
+    <span class="ep-path"><code>/api/integrations/activities</code></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum">Fetched activities waiting for the app</span>
+  </summary>
+  <div class="ep-body">
+<p>The pending list: each entry's source, id, fetch time, the provider's summary with only the documented fields kept (no coordinates, maps or segments) and, for Strava runs, the laps. The app turns them into runs (frontend <code>lib/run-import.js</code>) and then acknowledges them. Entries uncollected for seven days are dropped. Also the heart-rate zones Garmin Connect holds, when Garmin is connected.</p>
+    <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Requires a session: the cookie set at sign-in, or <code>Authorization: Bearer &lt;token&gt;</code> from mobile-app pairing.</span></p>
+
+
+    <p class="ep-h">Responses</p>
+    <div class="ptab">
+  <div class="prow rrow">
+    <span class="r-code s2">200</span>
+    <span class="p-desc">The pending activities<span class="r-sig">{ activities: object[], garminZones: object }</span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">401</span>
+    <span class="p-desc">No session, expired/revoked session, or a disabled account.<span class="r-sig"><code>{&quot;error&quot;:&quot;not signed in&quot;}</code></span></span>
+  </div>
+    </div>
+  </div>
+</details>
+
+<details class="ep" id="op-integrationsAck">
+  <summary>
+    <span class="m post">POST</span>
+    <span class="ep-path"><code>/api/integrations/activities/ack</code></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum">Acknowledge collected activities</span>
+  </summary>
+  <div class="ep-body">
+<p>Removes the named entries (<code>src:id</code>) from the pending list once the app has stored them.</p>
+    <p class="ep-auth"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Requires a session: the cookie set at sign-in, or <code>Authorization: Bearer &lt;token&gt;</code> from mobile-app pairing.</span></p>
+
+<p class="ep-h">Request body <span class="p-hint">(JSON)</span></p><div class="ptab">
+  <div class="prow">
+    <span class="p-name">keys<em class="p-req" title="required">required</em></span>
+    <span class="p-type">string[]</span>
+    <span class="p-desc"></span>
+  </div>
+</div>
+    <p class="ep-h">Responses</p>
+    <div class="ptab">
+  <div class="prow rrow">
+    <span class="r-code s2">200</span>
+    <span class="p-desc">Acknowledged<span class="r-sig">{ ok: boolean, pending: integer }</span></span>
+  </div>
+  <div class="prow rrow">
+    <span class="r-code s4">401</span>
+    <span class="p-desc">No session, expired/revoked session, or a disabled account.<span class="r-sig"><code>{&quot;error&quot;:&quot;not signed in&quot;}</code></span></span>
+  </div>
+    </div>
+  </div>
+</details>
+  </div>
+</section>
+
 <section class="api-sec" id="admin">
   <h2>Admin</h2>
   <p class="sub">Admin dashboard. Requires an admin session (<code>ADMIN_UIDS</code> or <code>admin:true</code>)</p>
@@ -3189,6 +3619,74 @@ main.api-main .lead { color: var(--fg-2); max-width: 58ch; margin: 14px 0 0; fon
     <span class="p-name">retryAfter</span>
     <span class="p-type">integer</span>
     <span class="p-desc">429 only. The same number of seconds as the Retry-After header.</span>
+  </div>
+</div>
+  </div>
+</details>
+
+<details class="ep sch" id="schema-IntegrationStatus">
+  <summary>
+    <span class="sch-name"><code>IntegrationStatus</code></span>
+    <span class="ep-chev" aria-hidden="true"></span>
+    <span class="ep-sum">One provider's connection, without its secret</span>
+  </summary>
+  <div class="ep-body">
+
+<div class="ptab">
+  <div class="prow">
+    <span class="p-name">configured</span>
+    <span class="p-type">boolean</span>
+    <span class="p-desc">The instance can offer this provider</span>
+  </div>
+  <div class="prow">
+    <span class="p-name">connected</span>
+    <span class="p-type">boolean</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">connectedAt</span>
+    <span class="p-type">integer</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">lastSync</span>
+    <span class="p-type">integer</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">lastFetched</span>
+    <span class="p-type">integer</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">error</span>
+    <span class="p-type">string</span>
+    <span class="p-desc">The last failure's code (unauthorized</span>
+  </div>
+  <div class="prow">
+    <span class="p-name">errorAt</span>
+    <span class="p-type">integer</span>
+    <span class="p-desc"></span>
+  </div>
+  <div class="prow">
+    <span class="p-name">retryAt</span>
+    <span class="p-type">integer</span>
+    <span class="p-desc">When a rate-limit pause ends</span>
+  </div>
+  <div class="prow">
+    <span class="p-name">athleteId</span>
+    <span class="p-type">integer</span>
+    <span class="p-desc">Strava only</span>
+  </div>
+  <div class="prow">
+    <span class="p-name">keyExpires</span>
+    <span class="p-type">string <span class="p-hint">(date)</span></span>
+    <span class="p-desc">Garmin only</span>
+  </div>
+  <div class="prow">
+    <span class="p-name">zones</span>
+    <span class="p-type">object</span>
+    <span class="p-desc">Garmin only</span>
   </div>
 </div>
   </div>
