@@ -7,7 +7,7 @@
 #                TestFlight, which then updates the iPhone over the air for 90 days per build.
 #                Needs the paid Apple Developer Program (docs/IOS_WITHOUT_XCODE.md).
 #
-# Runs by hand (Actions → iOS → Run workflow) and on version tags. A public repository gets
+# Runs by hand (Actions → iOS → Run workflow), on version tags, and on pull requests that touch the shells. A public repository gets
 # macOS minutes free; a private one pays ten Linux minutes per macOS minute.
 name: iOS
 
@@ -15,6 +15,14 @@ on:
   workflow_dispatch:
   push:
     tags: ['v*']
+  # A pull request that touches the iOS shells gets the unsigned build as a check.
+  pull_request:
+    paths:
+      - 'frontend/ios/**'
+      - 'frontend/ios-xtool/**'
+      - 'frontend/package.json'
+      - 'frontend/capacitor.config.json'
+      - '.github/workflows/ios.yml'
 
 permissions:
   contents: read
