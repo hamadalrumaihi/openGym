@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:fatigue-probe": "node scripts/fatigue-monotonic-probe.mjs",
-    "build:ios-xtool": "VITE_MOBILE=1 vite build && node ../scripts/catalogue/stage-media.mjs dist && node scripts/ios-xtool-prepare.mjs"
+    "build:ios-xtool": "VITE_MOBILE=1 vite build && node ../scripts/catalogue/stage-media.mjs dist && node scripts/ios-xtool-prepare.mjs",
+    "build:pages": "vite build && node ../scripts/catalogue/stage-media.mjs dist"
   },
   "license": "AGPL-3.0-or-later",
   "dependencies": {

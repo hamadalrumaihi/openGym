@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "description": "Only /api/* runs the proxy Function (functions/api/[[path]].js); everything else is a static file.",
+  "include": ["/api/*"],
+  "exclude": []
+}

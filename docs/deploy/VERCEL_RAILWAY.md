@@ -1,5 +1,9 @@
 # Vercel + Railway: openGym on cidportal-ody.vercel.app
 
+> Superseded on 2026-11-08: the Vercel project `cid` no longer exists. The app now lives on
+> Cloudflare Pages, see [CLOUDFLARE_PAGES.md](CLOUDFLARE_PAGES.md). This page stays for the
+> Railway half, which is unchanged, and for the CID portal rollback record.
+
 This is the split hosting this fork runs on. The app is static files on the existing Vercel
 project `cid`; the API runs as its own Railway service with a persistent volume; Vercel proxies
 `/api/*` to Railway, so the browser only ever sees one origin. One origin is what passkeys and

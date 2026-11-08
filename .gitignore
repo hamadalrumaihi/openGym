@@ -33,3 +33,6 @@ docs/superpowers/plans/
 
 # Vercel Build Output API (scripts/vercel/output.mjs)
 .vercel/
+
+# wrangler local state (Cloudflare Pages dev/deploy)
+frontend/.wrangler/
