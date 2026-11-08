@@ -1,0 +1,22 @@
+# Cloudflare Pages headers (docs/deploy/CLOUDFLARE_PAGES.md): the same ones the bundled nginx
+# and the Vercel output sent. The app shell, the worker and the manifest are always revalidated
+# so a deploy shows on the next load; hashed bundles and the licensed exercise media are
+# immutable and the media is same-origin only.
+/*
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: same-origin
+  Content-Security-Policy: frame-ancestors 'none'
+/
+  Cache-Control: no-cache
+/index.html
+  Cache-Control: no-cache
+/sw.js
+  Cache-Control: no-cache
+/manifest.json
+  Cache-Control: no-cache
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+/exercise-media/*
+  Cache-Control: public, max-age=2592000, immutable
+  Cross-Origin-Resource-Policy: same-origin

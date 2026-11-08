@@ -1,0 +1,47 @@
+# The web app to Cloudflare Pages on every push to main (docs/deploy/CLOUDFLARE_PAGES.md): the
+# static build with the exercise media staged in, plus the /api proxy Function in frontend/functions.
+# Needs two repository secrets: CLOUDFLARE_API_TOKEN (a token with "Cloudflare Pages: Edit" on the
+# account) and CLOUDFLARE_ACCOUNT_ID. Without them the job is skipped, not failed.
+name: Cloudflare Pages
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - 'catalogue/**'
+      - 'scripts/catalogue/**'
+      - 'api/coach/core/**'
+      - '.github/workflows/cloudflare-pages.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: ${{ vars.CLOUDFLARE_PAGES_PROJECT != '' }}
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build:pages
+      - name: Deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT }}
+        run: npx --yes wrangler@4 pages deploy dist --project-name "$PROJECT" --branch main --commit-dirty=true
